@@ -206,25 +206,26 @@ class Fish {
     ctx.translate(this.pos.x, this.pos.y);
     ctx.rotate(this.angle);
 
-    // 绘制鱼的形状 (替代图片，避免 404 错误)
     ctx.fillStyle = this.color;
     
-    // 身体
+    // 身体：变得更细长
+    // X轴半径加大 (1.2倍 size)，Y轴半径减小 (0.25倍 size)
     ctx.beginPath();
-    ctx.ellipse(0, 0, this.size / 1.5, this.size / 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, this.size * 1.2, this.size / 4, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // 尾巴
+    // 尾巴：配合身体调整位置
+    // 向后移动起始点
     ctx.beginPath();
-    ctx.moveTo(-this.size / 2, 0);
-    ctx.lineTo(-this.size, -this.size / 3);
-    ctx.lineTo(-this.size, this.size / 3);
+    ctx.moveTo(-this.size * 0.8, 0); 
+    ctx.lineTo(-this.size * 1.4, -this.size / 3);
+    ctx.lineTo(-this.size * 1.4, this.size / 3);
     ctx.fill();
 
-    // 眼睛
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    // 眼睛：稍微调整位置
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.beginPath();
-    ctx.arc(this.size / 3, -this.size / 8, this.size / 10, 0, Math.PI * 2);
+    ctx.arc(this.size * 0.6, -this.size / 10, this.size / 12, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -248,6 +249,9 @@ const FishBackground: React.FC<FishProps> = ({
   const frameIdRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const isReducedMotion = useRef(false);
+  
+  // 用于检测鼠标是否停止
+  const mouseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     try {
@@ -263,7 +267,6 @@ const FishBackground: React.FC<FishProps> = ({
             return () => mediaQuery.removeEventListener('change', handleMotionChange);
         }
     } catch (e) {
-        // Fallback for environments where matchMedia might be missing or limited
         isReducedMotion.current = false;
     }
   }, []);
@@ -291,7 +294,6 @@ const FishBackground: React.FC<FishProps> = ({
     const handleResize = () => {
       if (containerRef.current && canvas) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        // Safety check for zero dimensions
         if (width === 0 || height === 0) return;
 
         const dpr = window.devicePixelRatio || 1;
@@ -299,7 +301,7 @@ const FishBackground: React.FC<FishProps> = ({
         canvas.height = height * dpr;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
-        ctx.resetTransform(); // Reset before scaling
+        ctx.resetTransform();
         ctx.scale(dpr, dpr);
         
         if (fishesRef.current.length === 0) {
@@ -308,25 +310,41 @@ const FishBackground: React.FC<FishProps> = ({
       }
     };
 
-    // Initial Resize
     handleResize();
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isReducedMotion.current || !canvas) return;
       const rect = canvas.getBoundingClientRect();
       targetRef.current = new Vector(e.clientX - rect.left, e.clientY - rect.top);
+
+      // 清除之前的定时器
+      if (mouseTimeoutRef.current) {
+        clearTimeout(mouseTimeoutRef.current);
+      }
+
+      // 设置新的定时器，如果 200ms 内没有新的移动事件，视为鼠标停止
+      mouseTimeoutRef.current = setTimeout(() => {
+        targetRef.current = null; // 停止跟随
+      }, 200);
     };
     
+    // 触摸同理
     const handleTouchMove = (e: TouchEvent) => {
         if (isReducedMotion.current || !canvas) return;
         if(e.touches.length > 0) {
             const rect = canvas.getBoundingClientRect();
             targetRef.current = new Vector(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+            
+            if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
+            mouseTimeoutRef.current = setTimeout(() => {
+                targetRef.current = null;
+            }, 200);
         }
     }
     
     const handleMouseLeave = () => {
        targetRef.current = null;
+       if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
     }
 
     window.addEventListener('resize', handleResize);
@@ -340,7 +358,7 @@ const FishBackground: React.FC<FishProps> = ({
       const deltaTime = time - lastTimeRef.current; 
       lastTimeRef.current = time;
 
-      const safeDelta = Math.min(deltaTime, 64); // Cap delta time to prevent jumps
+      const safeDelta = Math.min(deltaTime, 64);
 
       if (containerRef.current && ctx) {
           const { width, height } = containerRef.current.getBoundingClientRect();
@@ -350,9 +368,21 @@ const FishBackground: React.FC<FishProps> = ({
             fish.boundaries(width, height);
             fish.separate(fishesRef.current, perceptionRadius, separationStrength);
 
+            // 逻辑更新：
+            // 1. 只有 target 存在（鼠标在移动）时才 seek
+            // 2. 如果鱼距离 target 太近（已到达），则强制 wander，避免原地转圈
+            let isSeeking = false;
+            
             if (targetRef.current && !isReducedMotion.current) {
-              fish.seek(targetRef.current, seekStrength);
-            } else {
+                const dist = Vector.sub(targetRef.current, fish.pos).mag();
+                // 距离阈值：50px。如果小于这个距离，视为到达，继续漫游穿过
+                if (dist > 50) {
+                   fish.seek(targetRef.current, seekStrength);
+                   isSeeking = true;
+                }
+            }
+            
+            if (!isSeeking) {
               fish.wander(wanderStrength);
             }
 
@@ -384,6 +414,7 @@ const FishBackground: React.FC<FishProps> = ({
       window.removeEventListener('mouseout', handleMouseLeave);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(frameIdRef.current);
+      if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
     };
   }, [fishCount, maxSpeed, perceptionRadius, separationStrength, seekStrength, wanderStrength]);
 
