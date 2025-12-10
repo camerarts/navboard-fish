@@ -97,7 +97,7 @@ class Fish {
     this.maxSpeed = maxSpeed * (0.8 + Math.random() * 0.4);
     this.maxForce = 0.1;
     this.wobble = Math.random() * Math.PI * 2;
-    this.size = 24 + Math.random() * 16;
+    this.size = 20 + Math.random() * 5;
     this.angle = 0;
     this.color = color;
   }
@@ -208,34 +208,65 @@ class Fish {
 
     ctx.fillStyle = this.color;
     
-    // 身体：变得更细长
-    // X轴半径加大 (1.2倍 size)，Y轴半径减小 (0.25倍 size)
+    // 1. 尾巴 (Tail)
     ctx.beginPath();
-    ctx.ellipse(0, 0, this.size * 1.2, this.size / 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 尾巴：配合身体调整位置
-    // 向后移动起始点
-    ctx.beginPath();
-    ctx.moveTo(-this.size * 0.8, 0); 
-    ctx.lineTo(-this.size * 1.4, -this.size / 3);
-    ctx.lineTo(-this.size * 1.4, this.size / 3);
+    ctx.moveTo(-this.size * 0.9, 0); 
+    ctx.lineTo(-this.size * 1.6, -this.size * 0.5);
+    ctx.quadraticCurveTo(-this.size * 1.3, 0, -this.size * 1.6, this.size * 0.5);
+    ctx.lineTo(-this.size * 0.9, 0);
     ctx.fill();
 
-    // 眼睛：稍微调整位置
+    // 2. 鱼鳍 (Fins) - 两侧
+    ctx.beginPath();
+    // 左鳍
+    ctx.moveTo(this.size * 0.3, -this.size * 0.25);
+    ctx.lineTo(this.size * 0.1, -this.size * 0.9);
+    ctx.lineTo(-this.size * 0.2, -this.size * 0.3);
+    // 右鳍
+    ctx.moveTo(this.size * 0.3, this.size * 0.25);
+    ctx.lineTo(this.size * 0.1, this.size * 0.9);
+    ctx.lineTo(-this.size * 0.2, this.size * 0.3);
+    ctx.fill();
+
+    // 3. 身体 (Body) - 细长椭圆
+    ctx.beginPath();
+    ctx.ellipse(0, 0, this.size * 1.3, this.size * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. 眼睛 (Eyes) - 双眼
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.beginPath();
-    ctx.arc(this.size * 0.6, -this.size / 10, this.size / 12, 0, Math.PI * 2);
+    // 左眼白
+    ctx.arc(this.size * 0.7, -this.size * 0.15, this.size * 0.12, 0, Math.PI * 2);
+    // 右眼白
+    ctx.arc(this.size * 0.7, this.size * 0.15, this.size * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    // 左眼珠
+    ctx.arc(this.size * 0.75, -this.size * 0.15, this.size * 0.05, 0, Math.PI * 2);
+    // 右眼珠
+    ctx.arc(this.size * 0.75, this.size * 0.15, this.size * 0.05, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 }
 
-const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98FB98', '#DDA0DD'];
+// 7 Bright Colors
+const COLORS = [
+    '#FF6B6B', // Red
+    '#FF9F43', // Orange
+    '#FDCB6E', // Yellow
+    '#55EFC4', // Green/Teal
+    '#00CEC9', // Cyan
+    '#0984E3', // Blue
+    '#FD79A8', // Pink
+];
 
 const FishBackground: React.FC<FishProps> = ({
-  fishCount = 8,
+  fishCount = 7,
   maxSpeed = 2.5,
   perceptionRadius = 80,
   separationStrength = 1.8,
@@ -249,9 +280,6 @@ const FishBackground: React.FC<FishProps> = ({
   const frameIdRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const isReducedMotion = useRef(false);
-  
-  // 用于检测鼠标是否停止
-  const mouseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     try {
@@ -316,35 +344,18 @@ const FishBackground: React.FC<FishProps> = ({
       if (isReducedMotion.current || !canvas) return;
       const rect = canvas.getBoundingClientRect();
       targetRef.current = new Vector(e.clientX - rect.left, e.clientY - rect.top);
-
-      // 清除之前的定时器
-      if (mouseTimeoutRef.current) {
-        clearTimeout(mouseTimeoutRef.current);
-      }
-
-      // 设置新的定时器，如果 200ms 内没有新的移动事件，视为鼠标停止
-      mouseTimeoutRef.current = setTimeout(() => {
-        targetRef.current = null; // 停止跟随
-      }, 200);
     };
     
-    // 触摸同理
     const handleTouchMove = (e: TouchEvent) => {
         if (isReducedMotion.current || !canvas) return;
         if(e.touches.length > 0) {
             const rect = canvas.getBoundingClientRect();
             targetRef.current = new Vector(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-            
-            if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
-            mouseTimeoutRef.current = setTimeout(() => {
-                targetRef.current = null;
-            }, 200);
         }
     }
     
     const handleMouseLeave = () => {
        targetRef.current = null;
-       if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
     }
 
     window.addEventListener('resize', handleResize);
@@ -369,20 +380,21 @@ const FishBackground: React.FC<FishProps> = ({
             fish.separate(fishesRef.current, perceptionRadius, separationStrength);
 
             // 逻辑更新：
-            // 1. 只有 target 存在（鼠标在移动）时才 seek
-            // 2. 如果鱼距离 target 太近（已到达），则强制 wander，避免原地转圈
-            let isSeeking = false;
+            // 只要 target 存在，就游向它，直到“到达”
+            let isArrived = false;
             
             if (targetRef.current && !isReducedMotion.current) {
                 const dist = Vector.sub(targetRef.current, fish.pos).mag();
-                // 距离阈值：50px。如果小于这个距离，视为到达，继续漫游穿过
-                if (dist > 50) {
+                // 距离阈值：100px。如果小于这个距离，视为到达，切换为漫游
+                if (dist > 100) {
                    fish.seek(targetRef.current, seekStrength);
-                   isSeeking = true;
+                } else {
+                   isArrived = true;
                 }
             }
             
-            if (!isSeeking) {
+            // 如果没有目标，或已到达目标，则漫游
+            if (!targetRef.current || isArrived || isReducedMotion.current) {
               fish.wander(wanderStrength);
             }
 
@@ -414,7 +426,6 @@ const FishBackground: React.FC<FishProps> = ({
       window.removeEventListener('mouseout', handleMouseLeave);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(frameIdRef.current);
-      if (mouseTimeoutRef.current) clearTimeout(mouseTimeoutRef.current);
     };
   }, [fishCount, maxSpeed, perceptionRadius, separationStrength, seekStrength, wanderStrength]);
 
