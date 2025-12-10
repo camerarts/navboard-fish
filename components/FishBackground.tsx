@@ -90,6 +90,10 @@ class Fish {
   color: string;
   angle: number;
 
+  // 状态追踪
+  lastTargetId: number;
+  isArrived: boolean;
+
   constructor(x: number, y: number, maxSpeed: number, color: string) {
     this.pos = new Vector(x, y);
     this.vel = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1);
@@ -100,6 +104,10 @@ class Fish {
     this.size = 20 + Math.random() * 5;
     this.angle = 0;
     this.color = color;
+    
+    // 初始化状态
+    this.lastTargetId = 0;
+    this.isArrived = true; // 初始状态为漫游，直到有新目标
   }
 
   applyForce(force: Vector) {
@@ -111,7 +119,9 @@ class Fish {
     const d = desired.mag();
 
     let speed = this.maxSpeed;
-    if (d < arriveRadius) {
+    // 只有当 arriveRadius > 0 时才启用减速逻辑
+    // 如果传入 0，则保持全速，实现“穿过”效果
+    if (arriveRadius > 0 && d < arriveRadius) {
       speed = (d / arriveRadius) * this.maxSpeed;
     }
 
@@ -265,6 +275,11 @@ const COLORS = [
     '#FD79A8', // Pink
 ];
 
+interface TargetData {
+    pos: Vector;
+    id: number;
+}
+
 const FishBackground: React.FC<FishProps> = ({
   fishCount = 7,
   maxSpeed = 2.5,
@@ -276,7 +291,10 @@ const FishBackground: React.FC<FishProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fishesRef = useRef<Fish[]>([]);
-  const targetRef = useRef<Vector | null>(null);
+  // Store target position AND a unique ID to detect "new" moves
+  const targetRef = useRef<TargetData | null>(null);
+  const targetIdCounter = useRef(0);
+  
   const frameIdRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const isReducedMotion = useRef(false);
@@ -343,26 +361,28 @@ const FishBackground: React.FC<FishProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (isReducedMotion.current || !canvas) return;
       const rect = canvas.getBoundingClientRect();
-      targetRef.current = new Vector(e.clientX - rect.left, e.clientY - rect.top);
+      targetIdCounter.current += 1; // Increment ID on move to signal a new target intent
+      targetRef.current = {
+          pos: new Vector(e.clientX - rect.left, e.clientY - rect.top),
+          id: targetIdCounter.current
+      };
     };
     
     const handleTouchMove = (e: TouchEvent) => {
         if (isReducedMotion.current || !canvas) return;
         if(e.touches.length > 0) {
             const rect = canvas.getBoundingClientRect();
-            targetRef.current = new Vector(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
+            targetIdCounter.current += 1;
+            targetRef.current = {
+                pos: new Vector(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top),
+                id: targetIdCounter.current
+            };
         }
-    }
-    
-    const handleMouseLeave = () => {
-       targetRef.current = null;
     }
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchmove', handleTouchMove);
-    window.addEventListener('touchend', handleMouseLeave);
-    window.addEventListener('mouseout', handleMouseLeave);
 
     const render = (time: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
@@ -379,22 +399,33 @@ const FishBackground: React.FC<FishProps> = ({
             fish.boundaries(width, height);
             fish.separate(fishesRef.current, perceptionRadius, separationStrength);
 
-            // 逻辑更新：
-            // 只要 target 存在，就游向它，直到“到达”
-            let isArrived = false;
-            
+            let shouldSeek = false;
+
             if (targetRef.current && !isReducedMotion.current) {
-                const dist = Vector.sub(targetRef.current, fish.pos).mag();
-                // 距离阈值：100px。如果小于这个距离，视为到达，切换为漫游
-                if (dist > 100) {
-                   fish.seek(targetRef.current, seekStrength);
-                } else {
-                   isArrived = true;
+                const target = targetRef.current;
+                
+                // 如果发现目标 ID 变了（鼠标移动了），则重置“已到达”状态，开始新的追踪
+                if (fish.lastTargetId !== target.id) {
+                    fish.isArrived = false;
+                    fish.lastTargetId = target.id;
+                }
+
+                if (!fish.isArrived) {
+                    const dist = Vector.sub(target.pos, fish.pos).mag();
+                    // 距离阈值：30px。
+                    // 当距离小于这个值，视为“穿过”了目标，标记为到达，然后切换为漫游。
+                    if (dist < 30) {
+                        fish.isArrived = true;
+                    } else {
+                        shouldSeek = true;
+                        // arriveRadius = 0 表示全速冲向目标，不减速，实现“穿过”效果
+                        fish.seek(target.pos, seekStrength, 0);
+                    }
                 }
             }
-            
-            // 如果没有目标，或已到达目标，则漫游
-            if (!targetRef.current || isArrived || isReducedMotion.current) {
+
+            // 如果不处于追踪状态（已到达，或没有目标，或减弱动画模式），则完全随机漫游
+            if (!shouldSeek) {
               fish.wander(wanderStrength);
             }
 
@@ -422,8 +453,6 @@ const FishBackground: React.FC<FishProps> = ({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleMouseLeave);
-      window.removeEventListener('mouseout', handleMouseLeave);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(frameIdRef.current);
     };
