@@ -1,0 +1,7 @@
+{
+  "name": "FlatNav - Personal Dashboard",
+  "description": "A minimalistic, flat-design personal navigation dashboard with bookmark management and AI-powered quick answers.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#f8fafc",
+    "navigationBarTitleText": "FlatNav",
+    "navigationBarTextStyle": "black"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "Used to display local weather information"
+    }
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
