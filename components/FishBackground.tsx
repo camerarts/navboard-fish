@@ -217,47 +217,50 @@ class Fish {
     ctx.rotate(this.angle);
 
     ctx.fillStyle = this.color;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+
+    // Scale factor to adjust the overall size of the new shape
+    const s = this.size * 0.6;
+
+    // 1. Tail (Thin filament)
+    // Extending far back to look like the reference
+    ctx.beginPath();
+    ctx.moveTo(-s * 2.8, 0); 
+    ctx.lineTo(-s * 6.0, 0);
+    ctx.stroke();
+
+    // 2. Body (Elongated oval)
+    ctx.beginPath();
+    // Center (0,0), long axis radius ~3.2s, short axis radius ~1.0s
+    ctx.ellipse(0, 0, s * 3.2, s * 1.0, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Pectoral Fins (Large front fins)
+    // Upper Fin (+y in rotated space)
+    ctx.beginPath();
+    ctx.moveTo(s * 1.2, s * 0.5); 
+    ctx.quadraticCurveTo(s * 0.5, s * 2.8, -s * 0.8, s * 0.8);
+    ctx.fill();
     
-    // 1. 尾巴 (Tail)
+    // Lower Fin (-y)
     ctx.beginPath();
-    ctx.moveTo(-this.size * 0.9, 0); 
-    ctx.lineTo(-this.size * 1.6, -this.size * 0.5);
-    ctx.quadraticCurveTo(-this.size * 1.3, 0, -this.size * 1.6, this.size * 0.5);
-    ctx.lineTo(-this.size * 0.9, 0);
+    ctx.moveTo(s * 1.2, -s * 0.5); 
+    ctx.quadraticCurveTo(s * 0.5, -s * 2.8, -s * 0.8, -s * 0.8);
     ctx.fill();
 
-    // 2. 鱼鳍 (Fins) - 两侧
+    // 4. Pelvic/Rear Fins (Small back fins)
+    // Upper
     ctx.beginPath();
-    // 左鳍
-    ctx.moveTo(this.size * 0.3, -this.size * 0.25);
-    ctx.lineTo(this.size * 0.1, -this.size * 0.9);
-    ctx.lineTo(-this.size * 0.2, -this.size * 0.3);
-    // 右鳍
-    ctx.moveTo(this.size * 0.3, this.size * 0.25);
-    ctx.lineTo(this.size * 0.1, this.size * 0.9);
-    ctx.lineTo(-this.size * 0.2, this.size * 0.3);
+    ctx.moveTo(-s * 1.0, s * 0.5);
+    ctx.quadraticCurveTo(-s * 1.5, s * 1.5, -s * 2.2, s * 0.4);
     ctx.fill();
 
-    // 3. 身体 (Body) - 细长椭圆
+    // Lower
     ctx.beginPath();
-    ctx.ellipse(0, 0, this.size * 1.3, this.size * 0.45, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 4. 眼睛 (Eyes) - 双眼
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.beginPath();
-    // 左眼白
-    ctx.arc(this.size * 0.7, -this.size * 0.15, this.size * 0.12, 0, Math.PI * 2);
-    // 右眼白
-    ctx.arc(this.size * 0.7, this.size * 0.15, this.size * 0.12, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    // 左眼珠
-    ctx.arc(this.size * 0.75, -this.size * 0.15, this.size * 0.05, 0, Math.PI * 2);
-    // 右眼珠
-    ctx.arc(this.size * 0.75, this.size * 0.15, this.size * 0.05, 0, Math.PI * 2);
+    ctx.moveTo(-s * 1.0, -s * 0.5);
+    ctx.quadraticCurveTo(-s * 1.5, -s * 1.5, -s * 2.2, -s * 0.4);
     ctx.fill();
 
     ctx.restore();
@@ -283,8 +286,8 @@ interface TargetData {
 const FishBackground: React.FC<FishProps> = ({
   fishCount = 7,
   maxSpeed = 2.5,
-  perceptionRadius = 80,
-  separationStrength = 1.8,
+  perceptionRadius = 50, // Reduced from 80 to allow closer proximity
+  separationStrength = 0.1, // Significantly reduced from 1.8 to allow overlapping
   seekStrength = 1.2,
   wanderStrength = 0.5,
 }) => {
