@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Bookmark, Category } from '../types';
 import { ExternalLink, Trash2, Edit2, GripVertical } from 'lucide-react';
@@ -111,7 +112,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
 
   return (
     <div 
-        className={`bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 md:p-4 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:scale-[1.01] transition-all duration-500 ease-out relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
+        className={`bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 md:p-4 shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:scale-[1.01] transition-all duration-500 ease-out relative h-full w-full ${bookmarks.length === 0 ? 'border-dashed bg-[var(--bg-main)]/50' : ''}`}
         onDragOver={(e) => { e.preventDefault(); }} 
         onDrop={handleContainerDrop}
     >
