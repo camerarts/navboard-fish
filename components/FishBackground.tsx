@@ -288,7 +288,7 @@ class Fish {
     // 4. Eyes (Kawaii style)
     const eyeX = s * 2.4;
     const eyeY = s * 0.9; // Adjusted from 0.7 to 0.9 to fit fatter body
-    const eyeSize = s * 0.55;
+    const eyeSize = s * 0.385; // Reduced by 30% from 0.55 (0.55 * 0.7 = 0.385)
 
     // Sclera
     ctx.shadowColor = 'transparent'; // Remove shadow for eyes
