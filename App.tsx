@@ -450,6 +450,7 @@ const App: React.FC = () => {
         :root {
             --bg-main: #f0f4f8;
             --bg-card: rgba(255, 255, 255, 0.75);
+            --bg-glass: rgba(255, 255, 255, 0.25);
             --bg-subtle: rgba(241, 245, 249, 0.6);
             --text-primary: #1e293b;
             --text-secondary: #64748b;
@@ -463,6 +464,7 @@ const App: React.FC = () => {
         [data-theme='dark'] {
             --bg-main: #0f172a;
             --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-glass: rgba(30, 41, 59, 0.25);
             --bg-subtle: rgba(51, 65, 85, 0.5);
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
@@ -475,6 +477,7 @@ const App: React.FC = () => {
         [data-theme='cyberpunk'] {
             --bg-main: #050505;
             --bg-card: rgba(18, 18, 18, 0.8);
+            --bg-glass: rgba(18, 18, 18, 0.4);
             --bg-subtle: rgba(26, 26, 26, 0.7);
             --text-primary: #00ff9d;
             --text-secondary: #d946ef;
