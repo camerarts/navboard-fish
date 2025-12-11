@@ -61,9 +61,9 @@ FlatNav 是一个基于 React 和 Cloudflare Pages 构建的现代化、极简�
 2. 进入 **Compute (Workers & Pages)** -> **Pages**。
 3. 点击 **Connect to Git**，选择你的仓库。
 4. **构建设置**:
-    *   **Framework preset**: Create React App
+    *   **Framework preset**: 无
     *   **Build command**: `npm run build`
-    *   **Build output directory**: `build`
+    *   **Build output directory**: `dist`
 
 ### 3. 绑定 KV Namespace (关键步骤)
 为了启用云端同步功能，你需要创建一个 KV 命名空间并绑定到 Pages 项目。
