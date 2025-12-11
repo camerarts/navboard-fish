@@ -227,40 +227,48 @@ class Fish {
     // 1. Tail (Thin filament)
     // Extending far back to look like the reference
     ctx.beginPath();
-    ctx.moveTo(-s * 2.8, 0); 
-    ctx.lineTo(-s * 6.0, 0);
+    ctx.moveTo(-s * 3.0, 0); 
+    ctx.lineTo(-s * 7.0, 0);
     ctx.stroke();
 
-    // 2. Body (Elongated oval)
+    // 2. Body (Tapered oval / Teardrop)
+    // Head at +X, Tail at -X
     ctx.beginPath();
-    // Center (0,0), long axis radius ~3.2s, short axis radius ~1.0s
-    ctx.ellipse(0, 0, s * 3.2, s * 1.0, 0, 0, Math.PI * 2);
+    const headX = s * 3.2;
+    const tailX = -s * 2.8;
+    const bodyWidth = s * 1.3;
+
+    ctx.moveTo(headX, 0);
+    // Top curve: round head, tapering to tail
+    ctx.bezierCurveTo(headX - s * 0.5, bodyWidth, tailX + s, bodyWidth * 0.6, tailX, 0);
+    // Bottom curve
+    ctx.bezierCurveTo(tailX + s, -bodyWidth * 0.6, headX - s * 0.5, -bodyWidth, headX, 0);
     ctx.fill();
 
     // 3. Pectoral Fins (Large front fins)
-    // Upper Fin (+y in rotated space)
+    // Upper Fin (+y)
     ctx.beginPath();
-    ctx.moveTo(s * 1.2, s * 0.5); 
-    ctx.quadraticCurveTo(s * 0.5, s * 2.8, -s * 0.8, s * 0.8);
+    ctx.moveTo(s * 1.5, s * 0.5); 
+    ctx.quadraticCurveTo(s * 0.5, s * 3.5, -s * 1.0, s * 1.0);
     ctx.fill();
     
     // Lower Fin (-y)
     ctx.beginPath();
-    ctx.moveTo(s * 1.2, -s * 0.5); 
-    ctx.quadraticCurveTo(s * 0.5, -s * 2.8, -s * 0.8, -s * 0.8);
+    ctx.moveTo(s * 1.5, -s * 0.5); 
+    ctx.quadraticCurveTo(s * 0.5, -s * 3.5, -s * 1.0, -s * 1.0);
     ctx.fill();
 
     // 4. Pelvic/Rear Fins (Small back fins)
     // Upper
     ctx.beginPath();
-    ctx.moveTo(-s * 1.0, s * 0.5);
-    ctx.quadraticCurveTo(-s * 1.5, s * 1.5, -s * 2.2, s * 0.4);
+    ctx.moveTo(-s * 1.2, s * 0.5);
+    ctx.quadraticCurveTo(-s * 2.0, s * 1.8, -s * 2.8, s * 0.4);
     ctx.fill();
 
     // Lower
     ctx.beginPath();
-    ctx.moveTo(-s * 1.0, -s * 0.5);
-    ctx.quadraticCurveTo(-s * 1.5, -s * 1.5, -s * 2.2, -s * 0.4);
+    ctx.moveTo(-s * 1.2, -s * 0.5);
+    ctx.quadraticCurveTo(-s * 2.0, -s * 1.8, -s * 2.8, -s * 0.4);
     ctx.fill();
 
     ctx.restore();
@@ -286,8 +294,8 @@ interface TargetData {
 const FishBackground: React.FC<FishProps> = ({
   fishCount = 7,
   maxSpeed = 2.5,
-  perceptionRadius = 50, // Reduced from 80 to allow closer proximity
-  separationStrength = 0.1, // Significantly reduced from 1.8 to allow overlapping
+  perceptionRadius = 40, // Reduced further to allow closer proximity
+  separationStrength = 0.05, // Significantly reduced to allow overlapping as requested
   seekStrength = 1.2,
   wanderStrength = 0.5,
 }) => {
