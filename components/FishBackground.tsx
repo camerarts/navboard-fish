@@ -207,7 +207,7 @@ class Fish {
     this.pos.add(this.vel);
     this.acc.mult(0);
 
-    this.wobble += 0.05;
+    this.wobble += 0.1; // Increased speed for smoother tail animation
     this.angle = this.vel.heading();
   }
 
@@ -216,74 +216,115 @@ class Fish {
     ctx.translate(this.pos.x, this.pos.y);
     ctx.rotate(this.angle);
 
+    const s = this.size * 0.55; // Adjust scale for new design
+
+    // 0. Soft Shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.05)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 4;
+    ctx.shadowOffsetY = 4;
+
+    // 1. Tail (Animated Filament)
+    // Drawn first to be behind the body
+    const tailOscillation = Math.sin(this.wobble) * 0.6; // Sway amount
+    
     ctx.fillStyle = this.color;
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-
-    // Scale factor to adjust the overall size of the new shape
-    const s = this.size * 0.6;
-
-    // 1. Tail (Thin filament)
-    // Extending far back to look like the reference
     ctx.beginPath();
-    ctx.moveTo(-s * 3.0, 0); 
-    ctx.lineTo(-s * 7.0, 0);
-    ctx.stroke();
+    ctx.moveTo(-s * 2.0, 0);
+    // Beziers for a flowing, tapering tail
+    ctx.bezierCurveTo(
+        -s * 5.0, s * 0.8 * tailOscillation, 
+        -s * 7.0, -s * 0.5 * tailOscillation, 
+        -s * 10.0, s * 1.2 * tailOscillation
+    );
+    ctx.bezierCurveTo(
+        -s * 7.0, -s * 0.5 * tailOscillation, 
+        -s * 5.0, s * 0.8 * tailOscillation, 
+        -s * 2.0, 0
+    );
+    ctx.fill();
 
-    // 2. Body (Tapered oval / Teardrop)
-    // Head at +X, Tail at -X
+    // 2. Fins (Translucent) - REDUCED SIZE
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = this.color;
+
+    // Pectoral Fins (Wings)
     ctx.beginPath();
-    const headX = s * 3.2;
-    const tailX = -s * 2.8;
-    const bodyWidth = s * 1.3;
+    // Left Wing
+    ctx.moveTo(s * 1.2, s * 0.8); 
+    ctx.quadraticCurveTo(s * 0.2, s * 1.9, -s * 0.8, s * 0.9);
+    ctx.lineTo(s * 1.2, s * 0.8);
+    ctx.fill();
+    // Right Wing
+    ctx.beginPath();
+    ctx.moveTo(s * 1.2, -s * 0.8);
+    ctx.quadraticCurveTo(s * 0.2, -s * 1.9, -s * 0.8, -s * 0.9);
+    ctx.lineTo(s * 1.2, -s * 0.8);
+    ctx.fill();
+
+    // Pelvic Fins (Small Rear) - REMOVED
+
+    ctx.globalAlpha = 1.0;
+
+    // 3. Body (Thinner -> Slightly Fatter)
+    // Use linear gradient for volume/lighting effect
+    const bodyGrad = ctx.createLinearGradient(s * 4, 0, -s * 3, 0);
+    bodyGrad.addColorStop(0, '#ffffff'); // Highlight on nose
+    bodyGrad.addColorStop(0.2, this.color);
+    bodyGrad.addColorStop(1, this.color);
+    ctx.fillStyle = bodyGrad;
+
+    ctx.beginPath();
+    const headX = s * 3.8;
+    const tailX = -s * 2.2;
+    const bodyWidth = s * 1.6; // Increased from 1.35 to 1.6 for fatter body
 
     ctx.moveTo(headX, 0);
-    // Top curve: round head, tapering to tail
-    ctx.bezierCurveTo(headX - s * 0.5, bodyWidth, tailX + s, bodyWidth * 0.6, tailX, 0);
-    // Bottom curve
-    ctx.bezierCurveTo(tailX + s, -bodyWidth * 0.6, headX - s * 0.5, -bodyWidth, headX, 0);
+    // Smooth teardrop shape
+    ctx.bezierCurveTo(headX, bodyWidth, tailX, bodyWidth * 0.7, tailX, 0);
+    ctx.bezierCurveTo(tailX, -bodyWidth * 0.7, headX, -bodyWidth, headX, 0);
     ctx.fill();
 
-    // 3. Pectoral Fins (Large front fins)
-    // Upper Fin (+y)
+    // 4. Eyes (Kawaii style)
+    const eyeX = s * 2.4;
+    const eyeY = s * 0.9; // Adjusted from 0.7 to 0.9 to fit fatter body
+    const eyeSize = s * 0.55;
+
+    // Sclera
+    ctx.shadowColor = 'transparent'; // Remove shadow for eyes
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
     ctx.beginPath();
-    ctx.moveTo(s * 1.5, s * 0.5); 
-    ctx.quadraticCurveTo(s * 0.5, s * 3.5, -s * 1.0, s * 1.0);
-    ctx.fill();
-    
-    // Lower Fin (-y)
-    ctx.beginPath();
-    ctx.moveTo(s * 1.5, -s * 0.5); 
-    ctx.quadraticCurveTo(s * 0.5, -s * 3.5, -s * 1.0, -s * 1.0);
+    ctx.arc(eyeX, eyeY, eyeSize, 0, Math.PI * 2);
+    ctx.arc(eyeX, -eyeY, eyeSize, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. Pelvic/Rear Fins (Small back fins)
-    // Upper
+    // Pupil
+    ctx.fillStyle = '#1e293b'; // Slate 800
     ctx.beginPath();
-    ctx.moveTo(-s * 1.2, s * 0.5);
-    ctx.quadraticCurveTo(-s * 2.0, s * 1.8, -s * 2.8, s * 0.4);
+    ctx.arc(eyeX + 0.5, eyeY, eyeSize * 0.45, 0, Math.PI * 2);
+    ctx.arc(eyeX + 0.5, -eyeY, eyeSize * 0.45, 0, Math.PI * 2);
     ctx.fill();
 
-    // Lower
+    // Highlight
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.moveTo(-s * 1.2, -s * 0.5);
-    ctx.quadraticCurveTo(-s * 2.0, -s * 1.8, -s * 2.8, -s * 0.4);
+    ctx.arc(eyeX + 1.5, eyeY - 1.5, eyeSize * 0.2, 0, Math.PI * 2);
+    ctx.arc(eyeX + 1.5, -eyeY - 1.5, eyeSize * 0.2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 }
 
-// 7 Bright Colors
+// 7 Bright Colors (Updated for better gradient appearance)
 const COLORS = [
     '#FF6B6B', // Red
     '#FF9F43', // Orange
     '#FDCB6E', // Yellow
-    '#55EFC4', // Green/Teal
-    '#00CEC9', // Cyan
-    '#0984E3', // Blue
-    '#FD79A8', // Pink
+    '#48dbfb', // Cyan
+    '#0abde3', // Blue
+    '#5f27cd', // Purple
+    '#ff9ff3', // Pink
 ];
 
 interface TargetData {
@@ -293,16 +334,15 @@ interface TargetData {
 
 const FishBackground: React.FC<FishProps> = ({
   fishCount = 7,
-  maxSpeed = 2.5,
-  perceptionRadius = 40, // Reduced further to allow closer proximity
-  separationStrength = 0.05, // Significantly reduced to allow overlapping as requested
+  maxSpeed = 1.5, // Slowed down from 2.5
+  perceptionRadius = 40,
+  separationStrength = 0.05, // Keep low for overlapping
   seekStrength = 1.2,
   wanderStrength = 0.5,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fishesRef = useRef<Fish[]>([]);
-  // Store target position AND a unique ID to detect "new" moves
   const targetRef = useRef<TargetData | null>(null);
   const targetIdCounter = useRef(0);
   
@@ -372,7 +412,7 @@ const FishBackground: React.FC<FishProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (isReducedMotion.current || !canvas) return;
       const rect = canvas.getBoundingClientRect();
-      targetIdCounter.current += 1; // Increment ID on move to signal a new target intent
+      targetIdCounter.current += 1;
       targetRef.current = {
           pos: new Vector(e.clientX - rect.left, e.clientY - rect.top),
           id: targetIdCounter.current
@@ -415,7 +455,6 @@ const FishBackground: React.FC<FishProps> = ({
             if (targetRef.current && !isReducedMotion.current) {
                 const target = targetRef.current;
                 
-                // 如果发现目标 ID 变了（鼠标移动了），则重置“已到达”状态，开始新的追踪
                 if (fish.lastTargetId !== target.id) {
                     fish.isArrived = false;
                     fish.lastTargetId = target.id;
@@ -423,19 +462,15 @@ const FishBackground: React.FC<FishProps> = ({
 
                 if (!fish.isArrived) {
                     const dist = Vector.sub(target.pos, fish.pos).mag();
-                    // 距离阈值：30px。
-                    // 当距离小于这个值，视为“穿过”了目标，标记为到达，然后切换为漫游。
                     if (dist < 30) {
                         fish.isArrived = true;
                     } else {
                         shouldSeek = true;
-                        // arriveRadius = 0 表示全速冲向目标，不减速，实现“穿过”效果
                         fish.seek(target.pos, seekStrength, 0);
                     }
                 }
             }
 
-            // 如果不处于追踪状态（已到达，或没有目标，或减弱动画模式），则完全随机漫游
             if (!shouldSeek) {
               fish.wander(wanderStrength);
             }
