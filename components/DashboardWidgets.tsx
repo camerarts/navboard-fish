@@ -65,7 +65,7 @@ const CalendarCard: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 xl:p-4 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-between relative overflow-hidden group hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
+    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-2 xl:p-4 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-between relative overflow-hidden group hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
       <div className="flex flex-col items-center justify-center bg-red-500 text-white rounded-xl xl:rounded-2xl w-10 h-14 xl:w-16 xl:h-20 shadow-red-200/50 shadow-lg shrink-0 transform group-hover:scale-110 transition-transform duration-500">
         <span className="text-[8px] xl:text-[10px] font-bold uppercase tracking-wider bg-red-600 w-full text-center py-0.5 xl:py-1 rounded-t-xl xl:rounded-t-2xl">
           {date.getMonth() + 1}月
@@ -129,7 +129,7 @@ const WeatherCard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
+      <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
         <Loader2 className="animate-spin text-blue-500 w-5 h-5 xl:w-6 xl:h-6" />
       </div>
     );
@@ -137,7 +137,7 @@ const WeatherCard: React.FC = () => {
 
   if (error || !weather) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-1 xl:gap-2 w-full">
+      <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-1 xl:gap-2 w-full">
         <div className="flex items-center gap-2 text-xs xl:text-sm font-bold text-[var(--text-primary)]">
             <AlertTriangle size={14} className="text-yellow-500" />
             {error}
@@ -151,7 +151,7 @@ const WeatherCard: React.FC = () => {
   const daily = weather.daily;
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 xl:p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center">
+    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-2 xl:p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center">
       {/* Current Weather Container */}
       <div className="flex flex-col items-start justify-between w-full md:w-auto md:min-w-[120px] xl:min-w-[160px] md:max-w-[50%] md:pr-4 md:mr-1 md:border-r border-[var(--border-color)] h-full py-0.5 xl:py-1">
         
@@ -217,7 +217,7 @@ const ClockCard: React.FC = () => {
   const hourDeg = ((hours % 12 + minutes / 60) / 12) * 360;
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-2 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 relative w-full group overflow-hidden">
+    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-2 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 relative w-full group overflow-hidden">
         {/* Subtle decorative glow on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-subtle)]/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"/>
         
@@ -311,18 +311,18 @@ const IPCard: React.FC = () => {
         // Fallback or just set loading false
         setLoading(false);
       });
-  }, []);
+    }, []);
 
   if (loading) {
     return (
-      <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
+      <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex items-center justify-center w-full">
         <Loader2 className="animate-spin text-blue-500 w-5 h-5 xl:w-6 xl:h-6" />
       </div>
     );
   }
 
   return (
-    <div className="bg-[var(--bg-card)]/80 backdrop-blur-xl rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
+    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
                <p className="text-[var(--text-secondary)] text-xs">IP 获取失败</p>
