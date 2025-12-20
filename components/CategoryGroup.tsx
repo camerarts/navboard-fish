@@ -153,10 +153,10 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
         )}
       </div>
 
-      {/* Bookmarks Grid - Tighter gap */}
-      <div className={`grid gap-2 min-h-[40px] max-h-[320px] overflow-y-auto pr-1 custom-scrollbar ${
+      {/* Bookmarks Grid - Higher density for more items */}
+      <div className={`grid gap-2 min-h-[40px] max-h-[400px] overflow-y-auto pr-1 custom-scrollbar ${
           !isEditMode 
-            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
+            ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8' 
             : 'grid-cols-1'
       }`}>
         {bookmarks.map((bookmark) => (
@@ -181,7 +181,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               className={`flex items-start rounded-lg bg-[var(--bg-subtle)] border border-transparent transition-all duration-300 ease-out relative overflow-hidden h-full ${
                   isEditMode 
                     ? 'border-[var(--border-color)] pr-20 cursor-move flex-row p-2 gap-2 bg-[var(--bg-card)] items-center' 
-                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 p-2.5 gap-2.5' 
+                    : 'hover:bg-[var(--bg-card)] hover:border-blue-200 hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 p-2 gap-2' 
               }`}
             >
               <div className="relative shrink-0 mt-0.5">
@@ -193,17 +193,17 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
               </div>
               
               <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-sm font-bold text-[var(--text-primary)] truncate w-full text-left leading-snug">
+                  <span className="text-[13px] font-bold text-[var(--text-primary)] truncate w-full text-left leading-snug">
                       {bookmark.title}
                   </span>
                   {bookmark.description && (
-                    <span className="text-[10px] text-[var(--text-secondary)] truncate w-full text-left mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[9px] text-[var(--text-secondary)] truncate w-full text-left mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
                         {bookmark.description}
                     </span>
                   )}
               </div>
               
-              {!isEditMode && <ExternalLink size={10} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto absolute top-2 right-2" />}
+              {!isEditMode && <ExternalLink size={9} className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 shrink-0 ml-auto absolute top-1.5 right-1.5" />}
             </a>
             
             {/* Edit Mode Controls for Bookmark */}
