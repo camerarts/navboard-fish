@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw } from 'lucide-react';
+import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw, Fish, FishOff } from 'lucide-react';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
@@ -42,6 +42,15 @@ const App: React.FC = () => {
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Background Animation Toggle State
+  const [showFish, setShowFish] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('flatnav_show_fish');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+
   // Drag State
   const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 
@@ -54,7 +63,7 @@ const App: React.FC = () => {
   const [logoError, setLogoError] = useState(false);
 
   // Cloudflare KV Sync State
-  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [syncState, setSyncState] = useState('idle');
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const isFirstLoad = useRef(true);
   const mainRef = useRef<HTMLElement>(null);
@@ -97,13 +106,10 @@ const App: React.FC = () => {
       try {
           const res = await fetch('/api/sync');
           
-          // Check for 404 (Local Mode) silently
           if (res.status === 404) {
-              // API endpoint doesn't exist, use local storage silently
               throw new Error("Local Mode (Endpoint not found)");
           }
 
-          // Robust check: Ensure we got a JSON response before parsing
           const contentType = res.headers.get("content-type");
           if (res.ok && contentType && contentType.includes("application/json")) {
               const data = await res.json();
@@ -116,13 +122,10 @@ const App: React.FC = () => {
                       setAppFontSize(data.config.appFontSize || 'text-xl');
                       setTheme(data.config.theme || 'light');
                   }
-                  console.log('已从 Cloudflare KV 加载最新数据');
                   setSyncState('idle');
                   setLastRefreshed(new Date().toLocaleTimeString());
-                  // Update local cache
                   saveToLocalStorage({ bookmarks: data.bookmarks, categories: data.categories, config: data.config });
               } else {
-                  console.log('KV 为空或返回空数据，尝试加载本地缓存');
                   loadFromLocalStorage();
                   setSyncState('idle');
                   setLastRefreshed(new Date().toLocaleTimeString() + ' (本地)');
@@ -131,12 +134,11 @@ const App: React.FC = () => {
               throw new Error(`Server returned ${res.status} or invalid content-type`);
           }
       } catch (error: any) {
-          // Only warn if it's not a simple 404 (which is expected in static hosting)
           if (!error.message?.includes("Local Mode")) {
               console.warn('KV 连接失败，切换至本地模式:', error);
           }
           loadFromLocalStorage();
-          setSyncState('error'); // Indicates "Local Mode"
+          setSyncState('error'); 
           setLastRefreshed('本地模式');
       }
   };
@@ -150,12 +152,9 @@ const App: React.FC = () => {
           config: { appName, appSubtitle, appFontSize, theme }
       };
 
-      // 1. Always save to local storage (Offline support & Cache)
       saveToLocalStorage(payload);
 
-      // 2. Try to sync to Cloudflare KV
       if (!sessionPassword) {
-          // If logged in but no password (e.g. forced state), can't save to cloud
           return;
       }
 
@@ -179,7 +178,6 @@ const App: React.FC = () => {
               setSyncState('error');
           }
       } catch (error) {
-          // Prevent console spam if we are already in an error state (offline)
           if (syncState !== 'error') {
               console.error('KV Save Network Error:', error);
           }
@@ -189,22 +187,18 @@ const App: React.FC = () => {
 
   // --- Effects ---
 
-  // 1. App Mount: Load data
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setIsSidebarOpen(false);
     }
     
-    // Fallback: load theme immediately to avoid flash
     const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
     if (storedTheme) setTheme(storedTheme); 
 
-    // Try loading from Cloud, fallback to Local
     loadDataFromKV().then(() => {
         isFirstLoad.current = false;
     });
     
-    // Attempt to restore session
     const savedPassword = localStorage.getItem('flatnav_session_pwd');
     if (savedPassword) {
         setSessionPassword(savedPassword);
@@ -212,7 +206,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 2. Auto-Save
   useEffect(() => {
       if (isFirstLoad.current) return;
 
@@ -220,7 +213,6 @@ const App: React.FC = () => {
           if (isAuthenticated && sessionPassword) {
              saveDataToKV();
           } else {
-             // For non-admins, we still save to local storage so they don't lose temporary edits (if enabled)
              saveToLocalStorage({ bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } });
           }
       }, 2000);
@@ -228,6 +220,10 @@ const App: React.FC = () => {
       return () => clearTimeout(timer);
   }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, isAuthenticated, sessionPassword]);
 
+  // Handle fish toggle persistence
+  useEffect(() => {
+    localStorage.setItem('flatnav_show_fish', String(showFish));
+  }, [showFish]);
 
   // Login Logic
   const handleLogin = async (password: string): Promise<{ success: boolean; message?: string }> => {
@@ -246,7 +242,6 @@ const App: React.FC = () => {
     }
 
     try {
-        // Send a verify-only request to the backend
         const res = await fetch('/api/sync', {
             method: 'POST',
             headers: {
@@ -261,8 +256,6 @@ const App: React.FC = () => {
             setSessionPassword(password);
             localStorage.setItem('flatnav_login_attempts', '0');
             localStorage.setItem('flatnav_session_pwd', password);
-            
-            // Refresh data from cloud to ensure consistency
             loadDataFromKV();
             return { success: true };
         } else if (res.status === 401) {
@@ -271,22 +264,15 @@ const App: React.FC = () => {
             localStorage.setItem('flatnav_last_attempt_date', today);
             return { success: false, message: '密码错误' };
         } else {
-            // If server exists but returns other error (500 etc)
             throw new Error(`Server status: ${res.status}`);
         }
     } catch (error) {
-        console.warn("Login Network Error (Falling back to local check):", error);
-        
-        // --- FALLBACK MODE ---
-        // If the server is unreachable (Failed to fetch), allow login if password matches default '1211'.
-        // This enables local administration even if the backend is down or not configured locally.
         if (password === '1211') {
              setIsAuthenticated(true);
              setSessionPassword(password); 
-             setSyncState('error'); // Explicitly mark sync as error so UI shows "Local Mode"
+             setSyncState('error');
              return { success: true };
         }
-
         return { success: false, message: '无法连接服务器，且密码不匹配本地默认值' };
     }
   };
@@ -342,16 +328,11 @@ const App: React.FC = () => {
       const container = mainRef.current;
 
       if (element && container) {
-          // Changed from 100 to 24 since SearchBar is no longer sticky
           const offset = 24; 
-          
-          // Calculate target scroll position within the container
           const elementRect = element.getBoundingClientRect();
           const containerRect = container.getBoundingClientRect();
           const currentScrollTop = container.scrollTop;
-          
           const targetTop = currentScrollTop + (elementRect.top - containerRect.top) - offset;
-          
           container.scrollTo({ top: targetTop, behavior: 'smooth' });
       }
 
@@ -413,7 +394,6 @@ const App: React.FC = () => {
       const draggedIndex = newBookmarks.findIndex(b => b.id === bookmarkId);
       
       if (draggedIndex === -1) return;
-      
       const draggedItem = newBookmarks[draggedIndex];
       
       if (draggedItem.categoryId !== categoryId) {
@@ -491,7 +471,7 @@ const App: React.FC = () => {
       `}</style>
 
       {/* Background Layer: Fish Animation */}
-      <FishBackground />
+      {showFish && <FishBackground />}
 
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
@@ -779,6 +759,27 @@ const App: React.FC = () => {
             </footer>
         </div>
       </main>
+
+      {/* Floating Fish Toggle Switch */}
+      <button
+        onClick={() => setShowFish(!showFish)}
+        className={`fixed bottom-6 right-6 z-40 p-3 rounded-full shadow-lg backdrop-blur-md border border-[var(--border-color)] transition-all duration-500 hover:scale-110 active:scale-90 group ${
+          showFish 
+            ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' 
+            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+        }`}
+        title={showFish ? '关闭背景动画' : '开启背景动画'}
+      >
+        <div className="relative">
+          {showFish ? <Fish size={20} /> : <FishOff size={20} />}
+          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${showFish ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+        </div>
+        
+        {/* Tooltip on Hover */}
+        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          {showFish ? '隐藏小鱼' : '显示小鱼'}
+        </span>
+      </button>
 
       {/* Modals */}
       <BookmarkModal 
