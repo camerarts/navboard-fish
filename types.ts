@@ -1,3 +1,6 @@
+// Add React import to resolve the React namespace for React.ReactNode
+import React from 'react';
+
 export interface Bookmark {
   id: string;
   title: string;
