@@ -54,6 +54,119 @@ const getLunarDate = (date: Date) => {
 
 const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
+type IPData = {
+  success: boolean;
+  ip: string;
+  city: string;
+  country: string;
+  isp?: string;
+  org?: string;
+  source?: string;
+};
+
+const IP_REQUEST_TIMEOUT = 5000;
+
+const fetchJsonWithTimeout = async (url: string, timeout = IP_REQUEST_TIMEOUT) => {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Request failed: ${res.status}`);
+    }
+
+    return res.json();
+  } finally {
+    window.clearTimeout(timer);
+  }
+};
+
+const normalizeIpData = (raw: any, source: string): IPData | null => {
+  if (!raw) return null;
+
+  if (source === 'cloudflare-function') {
+    if (!raw.success || !raw.ip) return null;
+    return {
+      success: true,
+      ip: raw.ip,
+      city: raw.city || '未知城市',
+      country: raw.country || '未知地区',
+      isp: raw.isp || '',
+      org: raw.org || '',
+      source,
+    };
+  }
+
+  if (source === 'ipwho.is') {
+    if (!raw.success || !raw.ip) return null;
+    return {
+      success: true,
+      ip: raw.ip,
+      city: raw.city || '未知城市',
+      country: raw.country || '未知地区',
+      isp: raw.connection?.isp || '',
+      org: raw.connection?.org || '',
+      source,
+    };
+  }
+
+  if (source === 'ipapi.co') {
+    if (!raw.ip) return null;
+    return {
+      success: true,
+      ip: raw.ip,
+      city: raw.city || '未知城市',
+      country: raw.country_name || raw.country || '未知地区',
+      isp: raw.org || '',
+      org: raw.org || '',
+      source,
+    };
+  }
+
+  if (source === 'ipify') {
+    if (!raw.ip) return null;
+    return {
+      success: true,
+      ip: raw.ip,
+      city: '位置未知',
+      country: '位置未知',
+      source,
+    };
+  }
+
+  return null;
+};
+
+const fetchCurrentIp = async (): Promise<IPData> => {
+  const providers: Array<{ source: string; url: string }> = [
+    { source: 'cloudflare-function', url: '/api/ip' },
+    { source: 'ipwho.is', url: 'https://ipwho.is/' },
+    { source: 'ipapi.co', url: 'https://ipapi.co/json/' },
+    { source: 'ipify', url: 'https://api64.ipify.org?format=json' },
+  ];
+
+  for (const provider of providers) {
+    try {
+      const raw = await fetchJsonWithTimeout(provider.url);
+      const normalized = normalizeIpData(raw, provider.source);
+      if (normalized) {
+        return normalized;
+      }
+    } catch (error) {
+      console.warn(`IP fetch failed for ${provider.source}:`, error);
+    }
+  }
+
+  throw new Error('All IP providers failed');
+};
+
 // --- Sub-Components ---
 
 const CalendarCard: React.FC = () => {
@@ -288,30 +401,29 @@ const ClockCard: React.FC = () => {
 };
 
 const IPCard: React.FC = () => {
-  const [ipData, setIpData] = useState<any>(null);
+  const [ipData, setIpData] = useState<IPData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadIp = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await fetchCurrentIp();
+      setIpData(data);
+    } catch (err) {
+      console.warn('IP fetch failed:', err);
+      setIpData(null);
+      setError('IP 获取失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // ipwho.is can be flaky or rate limited. Fallback or handle error gracefully.
-    fetch('https://ipwho.is/')
-      .then(res => {
-        if (!res.ok) throw new Error('IP API Error');
-        return res.json();
-      })
-      .then(data => {
-        if(data && data.success) {
-            setIpData(data);
-        } else {
-             throw new Error("API reported failure");
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.warn("IP fetch failed, trying fallback...", err);
-        // Fallback or just set loading false
-        setLoading(false);
-      });
-    }, []);
+    loadIp();
+  }, []);
 
   if (loading) {
     return (
@@ -325,8 +437,10 @@ const IPCard: React.FC = () => {
     <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
-               <p className="text-[var(--text-secondary)] text-xs">IP 获取失败</p>
-               <button onClick={() => window.location.reload()} className="mt-2 text-blue-500"><RefreshCw size={14} /></button>
+               <p className="text-[var(--text-secondary)] text-xs">{error || 'IP 获取失败'}</p>
+               <button onClick={loadIp} className="mt-2 text-blue-500 inline-flex items-center justify-center" aria-label="重新获取 IP">
+                 <RefreshCw size={14} />
+               </button>
            </div>
        ) : (
            <div className="space-y-0.5 xl:space-y-1 w-full">
@@ -343,7 +457,7 @@ const IPCard: React.FC = () => {
                </div>
                
                <div className="text-[8px] xl:text-[9px] text-[var(--text-secondary)] font-mono truncate opacity-70 hidden xl:block">
-                   {ipData.connection?.org || ipData.connection?.isp || 'ISP Unknown'}
+                   {ipData.org || ipData.isp || 'ISP Unknown'}
                </div>
            </div>
        )}
