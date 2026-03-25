@@ -59,9 +59,29 @@ type IPData = {
   ip: string;
   city: string;
   country: string;
+  countryCode?: string;
   isp?: string;
   org?: string;
   source?: string;
+};
+
+const zhRegionNames =
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
+    ? new Intl.DisplayNames(['zh-CN'], { type: 'region' })
+    : null;
+
+const getZhCountryName = (country?: string, countryCode?: string) => {
+  if (countryCode && zhRegionNames) {
+    const translated = zhRegionNames.of(countryCode.toUpperCase());
+    if (translated) return translated;
+  }
+
+  if (country && /^[A-Z]{2}$/.test(country) && zhRegionNames) {
+    const translated = zhRegionNames.of(country);
+    if (translated) return translated;
+  }
+
+  return country || '未知地区';
 };
 
 const IP_REQUEST_TIMEOUT = 5000;
@@ -97,7 +117,8 @@ const normalizeIpData = (raw: any, source: string): IPData | null => {
       success: true,
       ip: raw.ip,
       city: raw.city || '未知城市',
-      country: raw.country || '未知地区',
+      country: getZhCountryName(raw.countryName || raw.country, raw.countryCode || raw.country),
+      countryCode: raw.countryCode || raw.country,
       isp: raw.isp || '',
       org: raw.org || '',
       source,
@@ -110,7 +131,8 @@ const normalizeIpData = (raw: any, source: string): IPData | null => {
       success: true,
       ip: raw.ip,
       city: raw.city || '未知城市',
-      country: raw.country || '未知地区',
+      country: getZhCountryName(raw.country, raw.country_code),
+      countryCode: raw.country_code,
       isp: raw.connection?.isp || '',
       org: raw.connection?.org || '',
       source,
@@ -123,7 +145,8 @@ const normalizeIpData = (raw: any, source: string): IPData | null => {
       success: true,
       ip: raw.ip,
       city: raw.city || '未知城市',
-      country: raw.country_name || raw.country || '未知地区',
+      country: getZhCountryName(raw.country_name || raw.country, raw.country_code),
+      countryCode: raw.country_code,
       isp: raw.org || '',
       org: raw.org || '',
       source,
@@ -437,7 +460,7 @@ const IPCard: React.FC = () => {
     <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 xl:p-5 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col justify-center hover:shadow-xl hover:scale-[1.02] transition-all duration-500 w-full">
        {!ipData || !ipData.success ? (
            <div className="text-center">
-               <p className="text-[var(--text-secondary)] text-xs">{error || 'IP 获取失败'}</p>
+               <p className="text-[var(--text-secondary)] text-xs">{error || '获取 IP 失败'}</p>
                <button onClick={loadIp} className="mt-2 text-blue-500 inline-flex items-center justify-center" aria-label="重新获取 IP">
                  <RefreshCw size={14} />
                </button>
@@ -445,7 +468,7 @@ const IPCard: React.FC = () => {
        ) : (
            <div className="space-y-0.5 xl:space-y-1 w-full">
                <div>
-                   <span className="text-[8px] xl:text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-0.5">Current IP</span>
+                   <span className="text-[8px] xl:text-[9px] font-bold text-[var(--text-secondary)] tracking-wider block mb-0.5">当前 IP</span>
                    <div className="text-base xl:text-2xl font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>
                        {ipData.ip}
                    </div>
@@ -453,11 +476,11 @@ const IPCard: React.FC = () => {
                
                <div className="flex items-center gap-1.5 xl:gap-2 text-[var(--text-secondary)] text-[10px] xl:text-xs mt-1 pt-1 xl:pt-2 border-t border-[var(--border-color)]">
                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 animate-pulse"></span>
-                   <span className="truncate font-medium">{ipData.city}, {ipData.country}</span>
+                   <span className="truncate font-medium">{ipData.city} · {ipData.country}</span>
                </div>
                
                <div className="text-[8px] xl:text-[9px] text-[var(--text-secondary)] font-mono truncate opacity-70 hidden xl:block">
-                   {ipData.org || ipData.isp || 'ISP Unknown'}
+                   {ipData.org || ipData.isp || '运营商未知'}
                </div>
            </div>
        )}
