@@ -191,12 +191,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         />
       </a>
 
-      {/* 悬停操作：一个「更多」入口，全部操作收进菜单，避免误触 */}
+      {/* 悬停操作：一个「更多」入口，全部操作收进菜单，避免误触。
+          普通浏览（非编辑态）下移动端不常驻显示，保持界面干净——触屏长按卡片即可调出同一菜单；
+          仅在整理/编辑模式（canDrag）下移动端才常驻，给管理员明确的拖拽/操作入口。桌面端 hover 才出现。 */}
       <div
         className={cn(
-          'absolute right-1 top-1/2 z-20 flex -translate-y-1/2 items-center gap-0.5 rounded-lg p-0.5 transition-opacity',
-          // 触屏没有 hover，常驻显示；桌面端悬停才出现
-          'opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'
+          'bm-more-actions absolute right-1 top-1/2 z-20 flex -translate-y-1/2 items-center gap-0.5 rounded-lg p-0.5 transition-opacity',
+          canDrag
+            ? 'opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'
+            : 'opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'
         )}
         style={{ background: 'var(--bg-elevated)' }}
       >
