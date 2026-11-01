@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, Lock, AlertCircle, Ban, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Eye, EyeOff, Loader2, Lock } from 'lucide-react';
+import Modal from './Modal';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -11,81 +12,99 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setPassword('');
+      setError('');
+      setIsLoading(false);
+      setVisible(false);
+    }
+  }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!password.trim() || isLoading) return;
+
     setIsLoading(true);
+    setError('');
+    const result = await onLogin(password);
+    setIsLoading(false);
 
-    try {
-        const result = await onLogin(password);
-        if (result.success) {
-            setPassword('');
-            setError('');
-            onClose();
-        } else {
-            setError(result.message || '密码错误');
-        }
-    } catch (e) {
-        setError('发生意外错误');
-    } finally {
-        setIsLoading(false);
+    if (result.success) {
+      onClose();
+    } else {
+      setError(result.message || '登录失败');
     }
   };
 
-  // Check if the error message implies a lockout
-  const isLocked = error.includes('禁止') || error.includes('锁定');
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="flex justify-between items-center p-5 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            {isLocked ? <Ban size={20} className="text-red-500" /> : <Lock size={20} className="text-blue-500" />}
-            {isLocked ? '账号锁定' : '管理员登录'}
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition">
-            <X size={20} />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="sm"
+      title="管理员登录"
+      subtitle="登录后可以添加书签、整理分类，数据会同步到云端"
+    >
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="relative">
+          <Lock
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <input
+            autoFocus
+            type={visible ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError('');
+            }}
+            placeholder="请输入管理密码"
+            aria-label="管理密码"
+            aria-invalid={!!error}
+            className="w-full rounded-lg border py-2.5 pl-9 pr-10 text-[13px] outline-none focus:border-[var(--accent-color)]"
+            style={{
+              background: 'var(--bg-subtle)',
+              borderColor: error ? 'var(--danger)' : 'var(--border-color)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setVisible((prev) => !prev)}
+            aria-label={visible ? '隐藏密码' : '显示密码'}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 transition-colors hover:bg-[var(--bg-elevated)]"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {visible ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <input
-              required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLocked || isLoading}
-              className={`w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
-              placeholder={isLocked ? "已禁止输入" : "输入管理员密码"}
-              autoFocus={!isLocked}
-            />
-          </div>
 
-          {error && (
-            <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${isLocked ? 'bg-red-100 text-red-700' : 'bg-red-50 text-red-600'}`}>
-                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                <span className="font-medium">{error}</span>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLocked || isLoading}
-            className={`w-full flex items-center justify-center gap-2 text-white rounded-lg px-4 py-3 font-medium transition shadow-md active:transform active:scale-95 ${
-                isLocked || isLoading
-                ? 'bg-slate-400 cursor-not-allowed hover:bg-slate-400'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+        {error && (
+          <p
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11.5px] font-medium"
+            style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}
+            role="alert"
           >
-            {isLoading ? <Loader2 size={20} className="animate-spin" /> : (isLocked ? '明日再试' : '登录')}
-          </button>
-        </form>
-      </div>
-    </div>
+            <AlertCircle size={12} />
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isLoading || !password.trim()}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-bold text-white transition-all disabled:opacity-50"
+          style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}
+        >
+          {isLoading && <Loader2 size={14} className="animate-spin" />}
+          {isLoading ? '验证中…' : '登录'}
+        </button>
+      </form>
+    </Modal>
   );
 };
 

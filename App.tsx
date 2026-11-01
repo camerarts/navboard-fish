@@ -1,811 +1,913 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { ChevronRight, GripVertical, Info, Plus } from 'lucide-react';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Settings, User, LogOut, FolderPlus, Check, Compass, ChevronRight, ChevronLeft, Sun, Moon, Zap, X, Edit2, Cloud, RefreshCw, Fish, FishOff } from 'lucide-react';
+import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
 import CategoryGroup from './components/CategoryGroup';
 import BookmarkModal from './components/BookmarkModal';
 import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
+import PreviewModal from './components/PreviewModal';
+import CommandPalette from './components/CommandPalette';
+import ContextMenu, { ContextMenuState } from './components/ContextMenu';
+import ContentSkeleton from './components/ContentSkeleton';
 import DashboardWidgets from './components/DashboardWidgets';
-// Import last to ensure no circular dependency issues
+import BookmarkIcon from './components/BookmarkIcon';
 import FishBackground from './components/FishBackground';
+
 import { Bookmark, Category } from './types';
-import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, CATEGORY_ICONS } from './constants';
+import { INITIAL_BOOKMARKS, INITIAL_CATEGORIES, SEARCH_ENGINES } from './constants';
+import { ToastProvider, useToast } from './hooks/useToast';
+import { useHotkeys } from './hooks/useHotkeys';
+import { useScrollSpy } from './hooks/useScrollSpy';
+import { useDensity, useFrecency } from './hooks/usePreferences';
+import { cn, copyToClipboard, safeGetItem, safeSetItem } from './lib/utils';
 
 type ThemeType = 'light' | 'dark' | 'cyberpunk';
 type SyncState = 'idle' | 'syncing' | 'saved' | 'error';
 
-const App: React.FC = () => {
-  // --- State ---
+const ENGINE_KEY = 'flatnav_engine';
+
+const AppShell: React.FC = () => {
+  const { toast } = useToast();
+
+  // --- 数据 ---
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(INITIAL_BOOKMARKS);
-  
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [sessionPassword, setSessionPassword] = useState(''); // Store validated password for KV writes
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // UI State
+  // --- 登录 ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionPassword, setSessionPassword] = useState('');
+
+  // --- 界面 ---
+  const [theme, setTheme] = useState<ThemeType>('light');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
-  const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [isSiteConfigModalOpen, setIsSiteConfigModalOpen] = useState(false);
-  
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [previewBookmark, setPreviewBookmark] = useState<Bookmark | null>(null);
+  const [engineId, setEngineId] = useState<string>(
+    () => safeGetItem(ENGINE_KEY) || SEARCH_ENGINES[0].id
+  );
+
+  const { density, setDensity } = useDensity();
+  const { pins, togglePin, recordVisit, visitScore } = useFrecency();
+
+  // --- 弹窗 ---
+  const [isBookmarkModalOpen, setBookmarkModalOpen] = useState(false);
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [isLoginModalOpen, setLoginModalOpen] = useState(false);
+  const [isSiteConfigOpen, setSiteConfigOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  
-  // Theme State
-  const [theme, setTheme] = useState<ThemeType>('light');
-  
-  // Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string | undefined>(undefined);
 
-  // Background Animation Toggle State
-  const [showFish, setShowFish] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flatnav_show_fish');
-      return saved !== null ? saved === 'true' : true;
-    }
-    return true;
-  });
-
-  // Drag State
-  const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
-
-  // App Config State
+  // --- 站点配置 ---
   const [appName, setAppName] = useState('FlatNav');
-  const [appFontSize, setAppFontSize] = useState('text-xl');
   const [appSubtitle, setAppSubtitle] = useState('Dashboard');
-  
-  // Logo State
+  const [appFontSize, setAppFontSize] = useState('text-xl');
   const [logoError, setLogoError] = useState(false);
 
-  // Cloudflare KV Sync State
-  const [syncState, setSyncState] = useState('idle');
-  const [lastRefreshed, setLastRefreshed] = useState<string>('');
-  const isFirstLoad = useRef(true);
+  // --- 同步 ---
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [lastRefreshed, setLastRefreshed] = useState('');
+
+  // --- 背景 ---
+  const [showFish, setShowFish] = useState<boolean>(() => safeGetItem('flatnav_show_fish') !== 'false');
+
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [enableTilt] = useState(true);
+
+  const hasLoadedRef = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
 
-  // --- Helper: Local Storage Fallback ---
-  const loadFromLocalStorage = () => {
-      try {
-        const localBookmarks = localStorage.getItem('flatnav_bookmarks');
-        const localCategories = localStorage.getItem('flatnav_categories');
-        const localConfig = localStorage.getItem('flatnav_config');
-        
-        if (localBookmarks) setBookmarks(JSON.parse(localBookmarks));
-        if (localCategories) setCategories(JSON.parse(localCategories));
-        if (localConfig) {
-            const config = JSON.parse(localConfig);
-            setAppName(config.appName || 'FlatNav');
-            setAppSubtitle(config.appSubtitle || 'Dashboard');
-            setAppFontSize(config.appFontSize || 'text-xl');
-            setTheme(config.theme || 'light');
-        }
-      } catch (e) {
-          console.error("Local storage load error", e);
+  /* ================= 数据读写（行为与原逻辑保持一致） ================= */
+
+  const loadFromLocalStorage = useCallback(() => {
+    try {
+      const localBookmarks = localStorage.getItem('flatnav_bookmarks');
+      const localCategories = localStorage.getItem('flatnav_categories');
+      const localConfig = localStorage.getItem('flatnav_config');
+
+      if (localBookmarks) setBookmarks(JSON.parse(localBookmarks));
+      if (localCategories) setCategories(JSON.parse(localCategories));
+      if (localConfig) {
+        const config = JSON.parse(localConfig);
+        setAppName(config.appName || 'FlatNav');
+        setAppSubtitle(config.appSubtitle || 'Dashboard');
+        setAppFontSize(config.appFontSize || 'text-xl');
+        setTheme(config.theme || 'light');
       }
-  };
-
-  const saveToLocalStorage = (data: any) => {
-      try {
-        localStorage.setItem('flatnav_bookmarks', JSON.stringify(data.bookmarks));
-        localStorage.setItem('flatnav_categories', JSON.stringify(data.categories));
-        localStorage.setItem('flatnav_config', JSON.stringify(data.config));
-      } catch (e) {
-          console.error("Local storage save error", e);
-      }
-  };
-
-  // --- API Functions ---
-
-  const loadDataFromKV = async () => {
-      setSyncState('syncing');
-      try {
-          const res = await fetch('/api/sync');
-          
-          if (res.status === 404) {
-              throw new Error("Local Mode (Endpoint not found)");
-          }
-
-          const contentType = res.headers.get("content-type");
-          if (res.ok && contentType && contentType.includes("application/json")) {
-              const data = await res.json();
-              if (!data.empty && data.bookmarks) {
-                  setBookmarks(data.bookmarks);
-                  setCategories(data.categories);
-                  if (data.config) {
-                      setAppName(data.config.appName || 'FlatNav');
-                      setAppSubtitle(data.config.appSubtitle || 'Dashboard');
-                      setAppFontSize(data.config.appFontSize || 'text-xl');
-                      setTheme(data.config.theme || 'light');
-                  }
-                  setSyncState('idle');
-                  setLastRefreshed(new Date().toLocaleTimeString());
-                  saveToLocalStorage({ bookmarks: data.bookmarks, categories: data.categories, config: data.config });
-              } else {
-                  loadFromLocalStorage();
-                  setSyncState('idle');
-                  setLastRefreshed(new Date().toLocaleTimeString() + ' (本地)');
-              }
-          } else {
-              throw new Error(`Server returned ${res.status} or invalid content-type`);
-          }
-      } catch (error: any) {
-          if (!error.message?.includes("Local Mode")) {
-              console.warn('KV 连接失败，切换至本地模式:', error);
-          }
-          loadFromLocalStorage();
-          setSyncState('error'); 
-          setLastRefreshed('本地模式');
-      }
-  };
-
-  const saveDataToKV = async () => {
-      const payload = {
-          version: 2,
-          updatedAt: new Date().toISOString(),
-          bookmarks,
-          categories,
-          config: { appName, appSubtitle, appFontSize, theme }
-      };
-
-      saveToLocalStorage(payload);
-
-      if (!sessionPassword) {
-          return;
-      }
-
-      setSyncState('syncing');
-      try {
-          const res = await fetch('/api/sync', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'x-auth-token': sessionPassword
-              },
-              body: JSON.stringify(payload)
-          });
-
-          if (res.ok) {
-              setSyncState('saved');
-              setLastRefreshed(new Date().toLocaleTimeString());
-              setTimeout(() => setSyncState('idle'), 2000);
-          } else {
-              console.error('KV Save Failed:', res.status);
-              setSyncState('error');
-          }
-      } catch (error) {
-          if (syncState !== 'error') {
-              console.error('KV Save Network Error:', error);
-          }
-          setSyncState('error');
-      }
-  };
-
-  // --- Effects ---
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        setIsSidebarOpen(false);
-    }
-    
-    const storedTheme = localStorage.getItem('flatnav_theme') as ThemeType;
-    if (storedTheme) setTheme(storedTheme); 
-
-    loadDataFromKV().then(() => {
-        isFirstLoad.current = false;
-    });
-    
-    const savedPassword = localStorage.getItem('flatnav_session_pwd');
-    if (savedPassword) {
-        setSessionPassword(savedPassword);
-        setIsAuthenticated(true);
+    } catch (error) {
+      console.error('本地数据读取失败', error);
     }
   }, []);
 
-  useEffect(() => {
-      if (isFirstLoad.current) return;
+  const persistLocal = useCallback(
+    (payload: { bookmarks: Bookmark[]; categories: Category[]; config: unknown }) => {
+      try {
+        localStorage.setItem('flatnav_bookmarks', JSON.stringify(payload.bookmarks));
+        localStorage.setItem('flatnav_categories', JSON.stringify(payload.categories));
+        localStorage.setItem('flatnav_config', JSON.stringify(payload.config));
+      } catch (error) {
+        console.error('本地数据保存失败', error);
+      }
+    },
+    []
+  );
 
-      const timer = setTimeout(() => {
-          if (isAuthenticated && sessionPassword) {
-             saveDataToKV();
-          } else {
-             saveToLocalStorage({ bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } });
+  const loadDataFromKV = useCallback(async () => {
+    setSyncState('syncing');
+    try {
+      const res = await fetch('/api/sync');
+      if (res.status === 404) throw new Error('Local Mode (Endpoint not found)');
+
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!data.empty && data.bookmarks) {
+          setBookmarks(data.bookmarks);
+          setCategories(data.categories);
+          if (data.config) {
+            setAppName(data.config.appName || 'FlatNav');
+            setAppSubtitle(data.config.appSubtitle || 'Dashboard');
+            setAppFontSize(data.config.appFontSize || 'text-xl');
+            setTheme(data.config.theme || 'light');
           }
-      }, 2000);
+          setSyncState('idle');
+          setLastRefreshed(new Date().toLocaleTimeString());
+          persistLocal({ bookmarks: data.bookmarks, categories: data.categories, config: data.config });
+        } else {
+          loadFromLocalStorage();
+          setSyncState('idle');
+          setLastRefreshed(new Date().toLocaleTimeString() + '（本地）');
+        }
+      } else {
+        throw new Error(`服务返回 ${res.status}`);
+      }
+    } catch (error) {
+      if (!(error as Error).message?.includes('Local Mode')) {
+        console.warn('KV 连接失败，切换到本地模式', error);
+      }
+      loadFromLocalStorage();
+      setSyncState('error');
+      setLastRefreshed('本地模式');
+    }
+  }, [loadFromLocalStorage, persistLocal]);
 
-      return () => clearTimeout(timer);
-  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, isAuthenticated, sessionPassword]);
+  const saveDataToKV = useCallback(async () => {
+    const payload = {
+      version: 2,
+      updatedAt: new Date().toISOString(),
+      bookmarks,
+      categories,
+      config: { appName, appSubtitle, appFontSize, theme },
+    };
 
-  // Handle fish toggle persistence
+    persistLocal(payload);
+    if (!sessionPassword) return;
+
+    setSyncState('syncing');
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': sessionPassword },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setSyncState('saved');
+        setLastRefreshed(new Date().toLocaleTimeString());
+        window.setTimeout(() => setSyncState('idle'), 2000);
+      } else {
+        setSyncState('error');
+      }
+    } catch {
+      setSyncState('error');
+    }
+  }, [bookmarks, categories, appName, appSubtitle, appFontSize, theme, sessionPassword, persistLocal]);
+
+  /* ================= 初始化 ================= */
+
   useEffect(() => {
-    localStorage.setItem('flatnav_show_fish', String(showFish));
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+
+    const storedTheme = safeGetItem('flatnav_theme') as ThemeType | null;
+    if (storedTheme) setTheme(storedTheme);
+
+    const savedPassword = safeGetItem('flatnav_session_pwd');
+    if (savedPassword) {
+      setSessionPassword(savedPassword);
+      setIsAuthenticated(true);
+    }
+
+    loadDataFromKV().finally(() => {
+      hasLoadedRef.current = true;
+      setIsLoading(false);
+    });
+  }, [loadDataFromKV]);
+
+  // 防抖保存
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    const timer = window.setTimeout(() => {
+      if (isAuthenticated && sessionPassword) {
+        saveDataToKV();
+      } else {
+        persistLocal({ bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } });
+      }
+    }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [
+    bookmarks,
+    categories,
+    appName,
+    appSubtitle,
+    appFontSize,
+    theme,
+    isAuthenticated,
+    sessionPassword,
+    saveDataToKV,
+    persistLocal,
+  ]);
+
+  useEffect(() => {
+    safeSetItem('flatnav_show_fish', String(showFish));
   }, [showFish]);
 
-  // Login Logic
+  useEffect(() => {
+    safeSetItem('flatnav_theme', theme);
+    safeSetItem(ENGINE_KEY, engineId);
+  }, [theme, engineId]);
+
+  /* ================= 登录 ================= */
+
   const handleLogin = async (password: string): Promise<{ success: boolean; message?: string }> => {
     const today = new Date().toLocaleDateString();
     let attempts = parseInt(localStorage.getItem('flatnav_login_attempts') || '0', 10);
     const lastAttemptDate = localStorage.getItem('flatnav_last_attempt_date');
 
     if (lastAttemptDate !== today) {
-        attempts = 0;
-        localStorage.setItem('flatnav_login_attempts', '0');
-        localStorage.setItem('flatnav_last_attempt_date', today);
+      attempts = 0;
+      localStorage.setItem('flatnav_login_attempts', '0');
+      localStorage.setItem('flatnav_last_attempt_date', today);
     }
 
     if (attempts >= 5) {
-        return { success: false, message: '安全警告：今日尝试次数过多，请明日再试。' };
+      return { success: false, message: '今日尝试次数过多，请明天再试' };
     }
 
     try {
-        const res = await fetch('/api/sync', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': password
-            },
-            body: JSON.stringify({ verifyOnly: true })
-        });
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': password },
+        body: JSON.stringify({ verifyOnly: true }),
+      });
 
-        if (res.ok) {
-            setIsAuthenticated(true);
-            setSessionPassword(password);
-            localStorage.setItem('flatnav_login_attempts', '0');
-            localStorage.setItem('flatnav_session_pwd', password);
-            loadDataFromKV();
-            return { success: true };
-        } else if (res.status === 401) {
-            attempts += 1;
-            localStorage.setItem('flatnav_login_attempts', attempts.toString());
-            localStorage.setItem('flatnav_last_attempt_date', today);
-            return { success: false, message: '密码错误' };
-        } else {
-            throw new Error(`Server status: ${res.status}`);
-        }
-    } catch (error) {
-        if (password === '1211') {
-             setIsAuthenticated(true);
-             setSessionPassword(password); 
-             setSyncState('error');
-             return { success: true };
-        }
-        return { success: false, message: '无法连接服务器，且密码不匹配本地默认值' };
+      if (res.ok) {
+        setIsAuthenticated(true);
+        setSessionPassword(password);
+        localStorage.setItem('flatnav_login_attempts', '0');
+        safeSetItem('flatnav_session_pwd', password);
+        loadDataFromKV();
+        toast({ message: '登录成功，可以开始整理书签了', kind: 'success' });
+        return { success: true };
+      }
+
+      if (res.status === 401) {
+        attempts += 1;
+        localStorage.setItem('flatnav_login_attempts', attempts.toString());
+        localStorage.setItem('flatnav_last_attempt_date', today);
+        return { success: false, message: `密码错误，今天还剩 ${Math.max(0, 5 - attempts)} 次机会` };
+      }
+
+      throw new Error(`服务返回 ${res.status}`);
+    } catch {
+      if (password === '1211') {
+        setIsAuthenticated(true);
+        setSessionPassword(password);
+        setSyncState('error');
+        toast({ message: '本地模式登录成功，数据只保存在这台设备', kind: 'info' });
+        return { success: true };
+      }
+      return { success: false, message: '无法连接服务器，且密码不匹配本地默认值' };
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setIsEditMode(false); 
+    setIsEditMode(false);
     setSessionPassword('');
     localStorage.removeItem('flatnav_session_pwd');
+    toast({ message: '已退出登录', kind: 'info' });
   };
 
-  // CRUD Handlers
-  const handleSaveBookmark = (newBookmarkData: Partial<Bookmark>) => {
+  /* ================= 增删改 ================= */
+
+  const openAddBookmark = (categoryId?: string) => {
+    setEditingBookmark(null);
+    setDefaultCategoryId(categoryId);
+    setBookmarkModalOpen(true);
+  };
+
+  const openEditBookmark = (bookmark: Bookmark) => {
+    setEditingBookmark(bookmark);
+    setDefaultCategoryId(undefined);
+    setBookmarkModalOpen(true);
+  };
+
+  const saveBookmark = (data: Partial<Bookmark>) => {
     if (editingBookmark) {
-        setBookmarks(prev => prev.map(b => b.id === editingBookmark.id ? { ...b, ...newBookmarkData } as Bookmark : b));
+      setBookmarks((prev) =>
+        prev.map((item) => (item.id === editingBookmark.id ? ({ ...item, ...data } as Bookmark) : item))
+      );
+      toast({ message: '已保存修改', kind: 'success' });
     } else {
-        const newBookmark: Bookmark = { ...newBookmarkData, id: Date.now().toString() } as Bookmark;
-        setBookmarks(prev => [...prev, newBookmark]);
+      const created = { ...data, id: Date.now().toString() } as Bookmark;
+      setBookmarks((prev) => [...prev, created]);
+      toast({ message: `已添加「${created.title}」`, kind: 'success' });
     }
     setEditingBookmark(null);
   };
 
-  const handleDeleteBookmark = (id: string) => {
-      setBookmarks(prev => prev.filter(b => b.id !== id));
-  }
+  const deleteBookmark = (bookmark: Bookmark) => {
+    const snapshot = bookmarks;
+    setBookmarks((prev) => prev.filter((item) => item.id !== bookmark.id));
+    toast({
+      message: `已删除「${bookmark.title}」`,
+      kind: 'info',
+      actionLabel: '撤销',
+      onAction: () => {
+        setBookmarks(snapshot);
+        toast({ message: '已恢复', kind: 'success' });
+      },
+    });
+  };
 
-  const handleSaveCategory = (categoryData: { id?: string; name: string; color: string }) => {
-      if (categoryData.id) {
-          setCategories(prev => prev.map(c => c.id === categoryData.id ? { ...c, name: categoryData.name, color: categoryData.color } : c));
-      } else if (editingCategory) {
-          setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...categoryData, id: c.id } : c));
-      } else {
-          const newCategory: Category = { id: Date.now().toString(), name: categoryData.name, color: categoryData.color };
-          setCategories(prev => [...prev, newCategory]);
+  const saveCategory = (data: { id?: string; name: string; color: string }) => {
+    if (data.id) {
+      setCategories((prev) =>
+        prev.map((item) => (item.id === data.id ? { ...item, name: data.name, color: data.color } : item))
+      );
+      toast({ message: '分类已更新', kind: 'success' });
+    } else {
+      const created: Category = { id: Date.now().toString(), name: data.name, color: data.color };
+      setCategories((prev) => [...prev, created]);
+      toast({ message: `已新建分类「${created.name}」`, kind: 'success' });
+    }
+    setEditingCategory(null);
+  };
+
+  const deleteCategory = (id: string) => {
+    const target = categories.find((item) => item.id === id);
+    const snapshot = { categories, bookmarks };
+    const affected = bookmarks.filter((item) => item.categoryId === id).length;
+    setCategories((prev) => prev.filter((item) => item.id !== id));
+    setBookmarks((prev) => prev.filter((item) => item.categoryId !== id));
+    toast({
+      message: `已删除分类「${target?.name || ''}」${affected ? `及其中 ${affected} 个书签` : ''}`,
+      kind: 'info',
+      actionLabel: '撤销',
+      onAction: () => {
+        setCategories(snapshot.categories);
+        setBookmarks(snapshot.bookmarks);
+        toast({ message: '已恢复', kind: 'success' });
+      },
+    });
+  };
+
+  const togglePinBookmark = (bookmark: Bookmark) => {
+    const willPin = !pins.has(bookmark.id);
+    togglePin(bookmark.id);
+
+    if (!willPin) {
+      toast({ message: `已取消置顶「${bookmark.title}」`, kind: 'info' });
+      return;
+    }
+
+    // 置顶 = 把书签移到本分类最前面（等同于手动拖到最前，不改数据结构）
+    setBookmarks((prev) => {
+      const target = prev.find((item) => item.id === bookmark.id);
+      if (!target) return prev;
+      const rest = prev.filter((item) => item.id !== bookmark.id);
+      const insertAt = rest.findIndex((item) => item.categoryId === target.categoryId);
+      const next = [...rest];
+      if (insertAt < 0) next.push(target);
+      else next.splice(insertAt, 0, target);
+      return next;
+    });
+    toast({ message: `已置顶「${bookmark.title}」`, kind: 'success' });
+  };
+
+  /* ================= 打开书签 ================= */
+
+  const recordOpen = (bookmark: Bookmark) => {
+    recordVisit(bookmark.id);
+  };
+
+  const openBookmark = (bookmark: Bookmark, mode: 'newtab' | 'sametab' = 'newtab') => {
+    recordVisit(bookmark.id);
+    if (mode === 'newtab') {
+      window.open(bookmark.url, '_blank', 'noopener,noreferrer');
+    } else {
+      window.location.href = bookmark.url;
+    }
+  };
+
+  const handleContextMenu = (
+    event: React.MouseEvent | MouseEvent,
+    bookmark: Bookmark
+  ) => {
+    event.preventDefault();
+    setContextMenu({ x: event.clientX, y: event.clientY, bookmark });
+  };
+
+  const handleCopyLink = async (bookmark: Bookmark) => {
+    const ok = await copyToClipboard(bookmark.url);
+    toast({
+      message: ok ? '链接已复制' : '复制失败，请手动复制',
+      kind: ok ? 'success' : 'error',
+    });
+  };
+
+  /* ================= 拖拽 ================= */
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const canDragBookmarks = isAuthenticated && !isEditMode;
+
+  const resolveCategoryId = useCallback(
+    (overId: string): string | null => {
+      if (overId.startsWith('container:')) return overId.slice('container:'.length);
+      if (overId.startsWith('category:')) return overId.slice('category:'.length);
+      return bookmarks.find((item) => item.id === overId)?.categoryId ?? null;
+    },
+    [bookmarks]
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+    setContextMenu(null);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = String(active.id);
+    if (activeId.startsWith('category:')) return;
+
+    const dragged = bookmarks.find((item) => item.id === activeId);
+    if (!dragged) return;
+
+    const targetCategoryId = resolveCategoryId(String(over.id));
+    if (!targetCategoryId || targetCategoryId === dragged.categoryId) return;
+
+    setBookmarks((prev) =>
+      prev.map((item) => (item.id === activeId ? { ...item, categoryId: targetCategoryId } : item))
+    );
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // 分类排序
+    if (activeId.startsWith('category:')) {
+      const draggedCategoryId = activeId.slice('category:'.length);
+      const targetCategoryId = resolveCategoryId(overId);
+      const from = categories.findIndex((item) => item.id === draggedCategoryId);
+      const to = targetCategoryId
+        ? categories.findIndex((item) => item.id === targetCategoryId)
+        : -1;
+      if (from >= 0 && to >= 0 && from !== to) {
+        setCategories((prev) => arrayMove(prev, from, to));
+        toast({ message: '分类顺序已更新', kind: 'success' });
       }
-      setEditingCategory(null);
+      return;
+    }
+
+    // 书签排序
+    if (!overId.startsWith('category:') && !overId.startsWith('container:')) {
+      const from = bookmarks.findIndex((item) => item.id === activeId);
+      const to = bookmarks.findIndex((item) => item.id === overId);
+      if (from >= 0 && to >= 0 && from !== to) {
+        setBookmarks((prev) => arrayMove(prev, from, to));
+      }
+    }
   };
 
-  const handleDeleteCategory = (id: string) => {
-      setCategories(prev => prev.filter(c => c.id !== id));
-      setBookmarks(prev => prev.filter(b => b.categoryId !== id));
-  };
+  const activeDragBookmark = useMemo(
+    () => bookmarks.find((item) => item.id === activeDragId) || null,
+    [activeDragId, bookmarks]
+  );
 
-  const handleSaveSiteConfig = (name: string, fontSize: string, subtitle: string) => {
-      setAppName(name);
-      setAppFontSize(fontSize);
-      setAppSubtitle(subtitle);
-  };
+  /* ================= 滚动联动 ================= */
+
+  const sectionIds = useMemo(() => categories.map((item) => `category-${item.id}`), [categories]);
+  const activeSectionId = useScrollSpy(sectionIds, mainRef, 150);
 
   const scrollToCategory = (categoryId: string) => {
-      setActiveCategoryId(categoryId);
-      const element = document.getElementById(`category-${categoryId}`);
-      const container = mainRef.current;
-
-      if (element && container) {
-          const offset = 24; 
-          const elementRect = element.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const currentScrollTop = container.scrollTop;
-          const targetTop = currentScrollTop + (elementRect.top - containerRect.top) - offset;
-          container.scrollTo({ top: targetTop, behavior: 'smooth' });
-      }
-
-      if (window.innerWidth < 768) {
-          setIsSidebarOpen(false);
-      }
+    const element = document.getElementById(`category-${categoryId}`);
+    const container = mainRef.current;
+    if (element && container) {
+      const top =
+        container.scrollTop +
+        (element.getBoundingClientRect().top - container.getBoundingClientRect().top) -
+        10;
+      container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
-  const handleCategoryDragStart = (e: React.DragEvent, index: number) => {
-      if (!isEditMode) return;
-      setDraggedCategoryIndex(index);
-      e.dataTransfer.setData('type', 'category');
-      e.dataTransfer.effectAllowed = 'move';
+  /* ================= 快捷键 ================= */
+
+  const openNthBookmark = (index: number) => {
+    const categoryId = activeSectionId?.replace('category-', '');
+    const pool = categoryId
+      ? bookmarks.filter((item) => item.categoryId === categoryId)
+      : bookmarks;
+    const target = pool[index];
+    if (target) openBookmark(target);
   };
 
-  const handleCategoryDragOver = (e: React.DragEvent) => {
-      e.preventDefault(); 
-      e.dataTransfer.dropEffect = 'move';
-  };
+  const hotkeys = useMemo(() => {
+    const map: Record<string, () => void> = {
+      'mod+k': () => setIsPaletteOpen((prev) => !prev),
+      '/': () => window.dispatchEvent(new Event('nav:focus-search')),
+      escape: () => {
+        setIsPaletteOpen(false);
+        setContextMenu(null);
+      },
+    };
+    for (let i = 1; i <= 9; i++) {
+      map[String(i)] = () => openNthBookmark(i - 1);
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSectionId, bookmarks]);
 
-  const handleCategoryDrop = (e: React.DragEvent, dropIndex: number) => {
-      e.preventDefault();
-      if (!isEditMode) return;
+  useHotkeys(hotkeys);
 
-      if (e.dataTransfer.getData('type') === 'category' && draggedCategoryIndex !== null) {
-          if (draggedCategoryIndex !== dropIndex) {
-              const newCategories = [...categories];
-              const [movedCategory] = newCategories.splice(draggedCategoryIndex, 1);
-              newCategories.splice(dropIndex, 0, movedCategory);
-              setCategories(newCategories);
-          }
-          setDraggedCategoryIndex(null);
-      }
-  };
+  /* ================= 渲染 ================= */
 
-  const handleMoveBookmark = (draggedId: string, targetId: string) => {
-      const newBookmarks = [...bookmarks];
-      const draggedIndex = newBookmarks.findIndex(b => b.id === draggedId);
-      const targetIndex = newBookmarks.findIndex(b => b.id === targetId);
+  const bookmarksByCategory = useMemo(() => {
+    const map = new Map<string, Bookmark[]>();
+    for (const category of categories) map.set(category.id, []);
+    for (const bookmark of bookmarks) {
+      const list = map.get(bookmark.categoryId);
+      if (list) list.push(bookmark);
+      else map.set(bookmark.categoryId, [bookmark]);
+    }
+    return map;
+  }, [categories, bookmarks]);
 
-      if (draggedIndex === -1 || targetIndex === -1) return;
-
-      const draggedItem = newBookmarks[draggedIndex];
-      const targetItem = newBookmarks[targetIndex];
-
-      if (draggedItem.categoryId !== targetItem.categoryId) {
-          draggedItem.categoryId = targetItem.categoryId;
-      }
-
-      newBookmarks.splice(draggedIndex, 1);
-      const newTargetIndex = newBookmarks.findIndex(b => b.id === targetId);
-      newBookmarks.splice(newTargetIndex, 0, draggedItem);
-
-      setBookmarks(newBookmarks);
-  };
-
-  const handleMoveBookmarkToCategory = (bookmarkId: string, categoryId: string) => {
-      const newBookmarks = [...bookmarks];
-      const draggedIndex = newBookmarks.findIndex(b => b.id === bookmarkId);
-      
-      if (draggedIndex === -1) return;
-      const draggedItem = newBookmarks[draggedIndex];
-      
-      if (draggedItem.categoryId !== categoryId) {
-          draggedItem.categoryId = categoryId;
-          newBookmarks.splice(draggedIndex, 1);
-          newBookmarks.push(draggedItem);
-          setBookmarks(newBookmarks);
-      }
-  };
-
-  const openAddBookmarkModal = () => {
-    setEditingBookmark(null);
-    setIsBookmarkModalOpen(true);
-  };
-
-  const openEditBookmarkModal = (bookmark: Bookmark) => {
-      setEditingBookmark(bookmark);
-      setIsBookmarkModalOpen(true);
-  };
-
-  const openAddCategoryModal = () => {
-      setEditingCategory(null);
-      setIsCategoryModalOpen(true);
-  };
-
-  const openEditCategoryModal = (category: Category) => {
-      setEditingCategory(category);
-      setIsCategoryModalOpen(true);
-  };
+  const totalBookmarks = bookmarks.length;
 
   return (
-    <div className="flex h-screen bg-[var(--bg-main)] text-[var(--text-primary)] font-sans selection:bg-[var(--accent-bg)] overflow-hidden transition-colors duration-300 relative" data-theme={theme}>
-      <style>{`
-        :root {
-            --bg-main: #f0f4f8;
-            --bg-card: rgba(255, 255, 255, 0.75);
-            --bg-glass: rgba(255, 255, 255, 0.25);
-            --bg-subtle: rgba(241, 245, 249, 0.6);
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: rgba(226, 232, 240, 0.6);
-            --accent-color: #2563eb;
-            --accent-bg: rgba(37, 99, 235, 0.1);
-            --shadow-color: rgba(148, 163, 184, 0.15);
-            --hover-bg: rgba(248, 250, 252, 0.8);
-            --backdrop-blur: 20px;
-        }
-        [data-theme='dark'] {
-            --bg-main: #0f172a;
-            --bg-card: rgba(30, 41, 59, 0.7);
-            --bg-glass: rgba(30, 41, 59, 0.25);
-            --bg-subtle: rgba(51, 65, 85, 0.5);
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border-color: rgba(51, 65, 85, 0.6);
-            --accent-color: #60a5fa;
-            --accent-bg: rgba(59, 130, 246, 0.15);
-            --shadow-color: rgba(0, 0, 0, 0.4);
-            --hover-bg: rgba(51, 65, 85, 0.6);
-        }
-        [data-theme='cyberpunk'] {
-            --bg-main: #050505;
-            --bg-card: rgba(18, 18, 18, 0.8);
-            --bg-glass: rgba(18, 18, 18, 0.4);
-            --bg-subtle: rgba(26, 26, 26, 0.7);
-            --text-primary: #00ff9d;
-            --text-secondary: #d946ef;
-            --border-color: rgba(0, 255, 157, 0.3);
-            --accent-color: #00ff9d;
-            --accent-bg: rgba(0, 255, 157, 0.1);
-            --shadow-color: rgba(0, 255, 157, 0.2);
-            --hover-bg: rgba(26, 26, 26, 0.8);
-            font-family: 'Courier New', monospace;
-        }
-      `}</style>
-
-      {/* Background Layer: Fish Animation */}
+    <div
+      className="relative flex h-[100dvh] overflow-hidden font-sans transition-colors duration-300"
+      data-theme={theme}
+      style={{ background: 'var(--bg-main)', color: 'var(--text-primary)' }}
+    >
       {showFish && <FishBackground />}
 
-      {/* Mobile Backdrop */}
+      {/* 移动端遮罩 */}
       {isSidebarOpen && (
-        <div 
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
-            onClick={() => setIsSidebarOpen(false)}
+        <div
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
-      <aside 
-        className={`
-            fixed inset-y-0 left-0 z-50 h-full
-            bg-[var(--bg-card)] border-r border-[var(--border-color)] backdrop-blur-xl
-            flex flex-col shadow-2xl md:shadow-sm shrink-0
-            transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] overflow-hidden
-            ${isSidebarOpen ? 'translate-x-0 w-64 md:w-72 opacity-100' : '-translate-x-full w-64 md:w-0 md:translate-x-0 md:opacity-0 md:border-r-0'}
-            md:relative md:translate-x-0
-        `}
-      >
-          <div className="w-full h-full flex flex-col">
-            {/* Brand */}
-            <div className="h-24 flex items-center justify-between px-6 shrink-0 relative">
-                <a 
-                    href="/"
-                    onClick={(e) => { e.preventDefault(); window.location.reload(); }}
-                    className="group flex items-center gap-3 cursor-pointer select-none focus:outline-none"
-                >
-                    <div className={`relative flex items-center justify-center w-10 h-10 rounded-xl shadow-lg transition-all duration-500 ease-out group-hover:scale-110 overflow-hidden ${logoError ? 'bg-slate-900 text-white shadow-slate-900/20 group-hover:bg-blue-600' : 'bg-white shadow-slate-200'}`}>
-                        {logoError ? (
-                            <Compass size={22} className="group-hover:rotate-45 transition-transform duration-500" />
-                        ) : (
-                            <img 
-                                src="/favicon.ico" 
-                                alt="Logo" 
-                                className="w-6 h-6 object-contain"
-                                onError={() => setLogoError(true)}
-                            />
-                        )}
-                    </div>
-                    <div className="flex flex-col justify-center">
-                        <div className="flex items-center gap-2">
-                            <span className={`${appFontSize} font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover:text-blue-600 transition-all duration-300`}>
-                                {appName}
-                            </span>
-                            {isAuthenticated && (
-                                <button 
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsSiteConfigModalOpen(true); }}
-                                    className="text-[var(--text-secondary)] hover:text-blue-500 opacity-40 hover:opacity-100 p-1 rounded-md hover:bg-[var(--bg-subtle)] transition-all"
-                                    title="修改标题"
-                                >
-                                    <Edit2 size={12} />
-                                </button>
-                            )}
-                        </div>
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-widest leading-none mt-1.5">
-                            {appSubtitle}
-                        </span>
-                    </div>
-                </a>
-                <button 
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="md:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                    <X size={20} />
-                </button>
-            </div>
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onCollapse={() => setIsSidebarOpen(false)}
+        categories={categories}
+        bookmarks={bookmarks}
+        activeCategoryId={activeSectionId}
+        onSelectCategory={scrollToCategory}
+        isAuthenticated={isAuthenticated}
+        onOpenLogin={() => setLoginModalOpen(true)}
+        onLogout={handleLogout}
+        onAddCategory={() => {
+          setEditingCategory(null);
+          setCategoryModalOpen(true);
+        }}
+        appName={appName}
+        appSubtitle={appSubtitle}
+        appFontSize={appFontSize}
+        onOpenSiteConfig={() => setSiteConfigOpen(true)}
+        theme={theme}
+        onThemeChange={setTheme}
+        density={density}
+        onDensityChange={setDensity}
+        editMode={isEditMode}
+        onToggleEditMode={() => setIsEditMode((prev) => !prev)}
+        syncState={syncState}
+        lastRefreshed={lastRefreshed}
+        onRefresh={() => loadDataFromKV()}
+        showFish={showFish}
+        onToggleFish={() => setShowFish((prev) => !prev)}
+        onOpenPalette={() => setIsPaletteOpen(true)}
+        logoError={logoError}
+        onLogoError={() => setLogoError(true)}
+        isFirstLoad={isLoading}
+      />
 
-            {/* Navigation List */}
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scrollbar-hide">
-                <div className="px-4 mt-6 mb-4">
-                    <div className="flex items-center gap-3 group">
-                         <span className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] group-hover:text-[var(--accent-color)] transition-colors">
-                             分类导航
-                         </span>
-                         <div className="h-px bg-gradient-to-r from-[var(--border-color)] to-transparent flex-1"></div>
-                    </div>
+      {/* 侧栏收起后的展开入口 */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed left-3 top-4 z-40 flex items-center gap-1 rounded-xl border px-2 py-2 shadow-sm backdrop-blur-md transition-transform hover:translate-x-0.5"
+          style={{
+            background: 'var(--bg-card)',
+            borderColor: 'var(--border-color)',
+            color: 'var(--text-secondary)',
+          }}
+          aria-label="展开侧边栏"
+          title="展开侧边栏"
+        >
+          <ChevronRight size={16} />
+        </button>
+      )}
+
+      <main ref={mainRef} className="relative z-10 min-w-0 flex-1 overflow-y-auto scroll-smooth">
+        {/* 同步进度条 */}
+        <div
+          className="pointer-events-none fixed left-0 right-0 top-0 z-[60] h-[2px] overflow-hidden"
+          aria-hidden="true"
+        >
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: syncState === 'syncing' ? '100%' : '0%',
+              background: 'var(--accent-color)',
+              opacity: syncState === 'syncing' ? 1 : 0,
+            }}
+          />
+        </div>
+
+        <div className="mx-auto w-full max-w-[1400px] px-3 py-6 pb-24 sm:px-6 lg:px-8">
+          {isLoading ? (
+            <ContentSkeleton />
+          ) : (
+            <>
+              <DashboardWidgets />
+
+              <SearchBar
+                engines={SEARCH_ENGINES}
+                engineId={engineId}
+                onEngineChange={setEngineId}
+                onOpenPalette={() => setIsPaletteOpen(true)}
+              />
+
+              {/* 工具栏 */}
+              <div className="mb-3 flex items-center gap-2">
+                <p className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {categories.length} 个分类 · {totalBookmarks} 个书签
+                </p>
+
+                {isEditMode && (
+                  <span
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10.5px] font-medium"
+                    style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)' }}
+                  >
+                    <Info size={11} />
+                    整理中：拖动分类标题可调整顺序
+                  </span>
+                )}
+
+                {isAuthenticated && (
+                  <button
+                    onClick={() => openAddBookmark()}
+                    className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-[12px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5"
+                    style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}
+                  >
+                    <Plus size={13} strokeWidth={3} />
+                    添加书签
+                  </button>
+                )}
+              </div>
+
+              {/* 分类列表 */}
+              {categories.length === 0 ? (
+                <div
+                  className="rounded-2xl border-2 border-dashed py-16 text-center"
+                  style={{ borderColor: 'var(--border-color)' }}
+                >
+                  <p className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    还没有分类
+                  </p>
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => setCategoryModalOpen(true)}
+                      className="mt-3 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
+                      style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)' }}
+                    >
+                      创建第一个分类
+                    </button>
+                  )}
                 </div>
-                
-                {categories.map(category => {
-                    const Icon = CATEGORY_ICONS[category.name] || CATEGORY_ICONS['日常办公'];
-                    const isActive = activeCategoryId === category.id;
-                    return (
-                        <button
-                            key={category.id}
-                            onClick={() => scrollToCategory(category.id)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${
-                                isActive 
-                                ? 'bg-[var(--accent-bg)] text-[var(--accent-color)] shadow-sm scale-[1.02]' 
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] hover:scale-[1.02]'
-                            }`}
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={() => setActiveDragId(null)}
+                >
+                  <SortableContext
+                    items={categories.map((item) => `category:${item.id}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-3">
+                      {categories.map((category) => (
+                        <div
+                          key={category.id}
+                          id={`category-${category.id}`}
+                          className="scroll-mt-2"
                         >
-                            <div className="flex items-center gap-3 relative z-10">
-                                <span className={`transition-colors duration-300 ${isActive ? 'text-[var(--accent-color)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-hover:scale-110 transform'}`}>
-                                    {Icon}
-                                </span>
-                                <span>{category.name}</span>
-                            </div>
-                            {isActive && <ChevronRight size={14} className="text-[var(--accent-color)]" />}
-                        </button>
-                    )
-                })}
-
-                {isAuthenticated && (
-                    <button 
-                        onClick={openAddCategoryModal}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:bg-[var(--accent-bg)] border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all mt-4 group hover:scale-[1.02]"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        <span>添加分类</span>
-                    </button>
-                )}
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-subtle)]/50 shrink-0 space-y-3 backdrop-blur-sm">
-                
-                {/* Theme Switcher */}
-                <div className="grid grid-cols-3 gap-2 p-1 bg-[var(--bg-main)]/80 rounded-xl border border-[var(--border-color)]">
-                    <button 
-                        onClick={() => setTheme('light')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'light' ? 'bg-[var(--bg-card)] shadow-sm text-blue-600' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                    >
-                        <Sun size={16} />
-                    </button>
-                    <button 
-                        onClick={() => setTheme('dark')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'dark' ? 'bg-[var(--bg-card)] shadow-sm text-blue-400' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                    >
-                        <Moon size={16} />
-                    </button>
-                    <button 
-                        onClick={() => setTheme('cyberpunk')}
-                        className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all hover:scale-105 ${theme === 'cyberpunk' ? 'bg-[var(--bg-card)] shadow-sm text-[#00ff9d]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                    >
-                        <Zap size={16} />
-                    </button>
-                </div>
-
-                {isAuthenticated && (
-                    <button 
-                        onClick={() => setIsEditMode(!isEditMode)}
-                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
-                            isEditMode 
-                            ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/10' 
-                            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-color)] hover:text-[var(--accent-color)]'
-                        }`}
-                    >
-                        {isEditMode ? <Check size={16} /> : <Settings size={16} />}
-                        <span>{isEditMode ? '完成编辑' : '布局设置'}</span>
-                    </button>
-                )}
-
-                {/* User / Auth */}
-                {isAuthenticated ? (
-                     <div className="flex flex-col gap-2 p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center relative ${
-                                syncState === 'error' ? 'bg-red-100 text-red-500' : 'bg-[var(--accent-bg)] text-[var(--accent-color)]'
-                            }`}>
-                                <User size={18} />
-                                <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center ${
-                                    syncState === 'error' ? 'bg-red-500' :
-                                    syncState === 'syncing' ? 'bg-blue-500 animate-pulse' :
-                                    syncState === 'saved' ? 'bg-green-500' : 'bg-green-500'
-                                }`}>
-                                    <Cloud size={8} className="text-white" fill="currentColor"/>
-                                </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-[var(--text-primary)] truncate">管理员</p>
-                                <p className={`text-[10px] truncate ${syncState === 'error' ? 'text-red-500 font-medium' : 'text-[var(--text-secondary)]'}`}>
-                                    {syncState === 'error' ? '本地模式 (未同步)' :
-                                     syncState === 'syncing' ? '正在同步...' :
-                                     syncState === 'saved' ? '已保存到云端' : 'KV 实时同步'}
-                                </p>
-                            </div>
-                            <button 
-                                onClick={handleLogout}
-                                className="p-1.5 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="退出登录"
-                            >
-                                <LogOut size={16} />
-                            </button>
-                        </div>
-
-                        <div className="pt-2 border-t border-[var(--border-color)] mt-1">
-                            <div className="flex items-center justify-between">
-                                <button
-                                    onClick={() => loadDataFromKV()}
-                                    className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-blue-600 transition-colors"
-                                >
-                                    <RefreshCw size={12} className={syncState === 'syncing' ? 'animate-spin' : ''} /> 刷新数据
-                                </button>
-                                {lastRefreshed && (
-                                    <span className="text-[10px] text-[var(--text-secondary)] opacity-70 px-2" title="上次更新时间">
-                                        {lastRefreshed}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <button 
-                        onClick={() => setIsLoginModalOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all hover:scale-[1.02]"
-                    >
-                        <User size={18} />
-                        <span>管理员登录</span>
-                    </button>
-                )}
-            </div>
-          </div>
-      </aside>
-
-      <main ref={mainRef} className="flex-1 h-full overflow-y-auto scroll-smooth relative z-10">
-        <div className={`sticky top-8 z-40 h-0 overflow-visible transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${isSidebarOpen ? 'md:-left-3 -left-20' : 'left-4 md:left-6'}`}>
-             <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="bg-[var(--bg-card)] backdrop-blur-md border border-[var(--border-color)] p-2 rounded-full shadow-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:shadow-md transition-all flex items-center justify-center hover:scale-110"
-             >
-                {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-             </button>
-         </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 pb-32">
-            <DashboardWidgets />
-            <div className="mb-10 relative z-20">
-                <SearchBar />
-            </div>
-
-            {isAuthenticated && (
-                <div className="flex justify-end mb-6">
-                     <button 
-                        onClick={openAddBookmarkModal}
-                        className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:scale-105"
-                    >
-                        <Plus size={16} strokeWidth={3} />
-                        添加书签
-                    </button>
-                </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-                {categories.map((category, index) => (
-                    <div
-                        key={category.id}
-                        id={`category-${category.id}`}
-                        draggable={isEditMode}
-                        onDragStart={(e) => handleCategoryDragStart(e, index)}
-                        onDragOver={handleCategoryDragOver}
-                        onDrop={(e) => handleCategoryDrop(e, index)}
-                        className={`transition-all duration-500 ease-out w-full scroll-mt-24 ${
-                            isEditMode ? 'cursor-move ring-2 ring-blue-100 hover:ring-blue-300 rounded-2xl opacity-90' : ''
-                        }`}
-                    >
-                        <CategoryGroup 
-                            category={category} 
-                            bookmarks={bookmarks.filter(b => b.categoryId === category.id)}
-                            onEditBookmark={openEditBookmarkModal}
-                            onDeleteBookmark={handleDeleteBookmark}
-                            onEditCategory={openEditCategoryModal}
-                            onDeleteCategory={handleDeleteCategory}
-                            isEditMode={isEditMode}
+                          <CategoryGroup
+                            category={category}
+                            bookmarks={bookmarksByCategory.get(category.id) || []}
+                            density={density}
+                            editMode={isEditMode}
                             isAuthenticated={isAuthenticated}
-                            onMoveBookmark={handleMoveBookmark}
-                            onMoveToCategory={handleMoveBookmarkToCategory}
+                            canDragBookmarks={canDragBookmarks}
+                            pins={pins}
+                            enableTilt={enableTilt}
+                            onEditCategory={(target) => {
+                              setEditingCategory(target);
+                              setCategoryModalOpen(true);
+                            }}
+                            onDeleteCategory={(target) => deleteCategory(target.id)}
+                            onAddBookmark={openAddBookmark}
+                            onEditBookmark={openEditBookmark}
+                            onDeleteBookmark={deleteBookmark}
+                            onContextMenu={handleContextMenu}
+                            onMoreActions={(bookmark, anchor) =>
+                              setContextMenu({
+                                x: anchor.left,
+                                y: anchor.bottom + 6,
+                                bookmark,
+                              })
+                            }
+                            onBeforeOpen={recordOpen}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.18,0.67,0.6,1.22)' }}>
+                    {activeDragBookmark ? (
+                      <div
+                        className="flex items-center gap-2 rounded-xl border px-2.5 py-2 shadow-xl"
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          borderColor: 'var(--accent-color)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        <BookmarkIcon
+                          url={activeDragBookmark.url}
+                          title={activeDragBookmark.title}
+                          className="h-7 w-7 rounded-md"
                         />
-                    </div>
-                ))}
+                        <span className="max-w-[160px] truncate text-[12.5px] font-semibold">
+                          {activeDragBookmark.title}
+                        </span>
+                        <GripVertical size={13} style={{ color: 'var(--text-secondary)' }} />
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              )}
 
-                {categories.length === 0 && (
-                    <div className="text-center py-20 border-2 border-dashed border-[var(--border-color)] rounded-3xl bg-[var(--bg-card)]/50 backdrop-blur-sm">
-                        <FolderPlus size={48} className="mx-auto text-[var(--text-secondary)] mb-4" />
-                        <h3 className="text-[var(--text-secondary)] font-medium">暂无分类</h3>
-                        {isAuthenticated && (
-                            <p className="text-[var(--text-secondary)] text-sm mt-2">点击左侧边栏“添加分类”开始使用</p>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <footer className="mt-20 pt-8 border-t border-[var(--border-color)] text-center">
-                <p className="text-[var(--text-secondary)] text-xs font-medium tracking-wide">&copy; {new Date().getFullYear()} {appName} Dashboard.</p>
-            </footer>
+              <footer
+                className="mt-14 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t pt-6 text-[10.5px]"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+              >
+                <span>
+                  &copy; {new Date().getFullYear()} {appName}
+                </span>
+                <span className="opacity-40">·</span>
+                <span className="flex items-center gap-1">
+                  按 <kbd className="rounded border px-1" style={{ borderColor: 'var(--border-color)' }}>⌘K</kbd>
+                  搜索书签
+                </span>
+                <span className="opacity-40">·</span>
+                <span className="flex items-center gap-1">
+                  按 <kbd className="rounded border px-1" style={{ borderColor: 'var(--border-color)' }}>/</kbd>
+                  聚焦搜索框
+                </span>
+                <span className="opacity-40">·</span>
+                <span>1–9 直接打开当前分类的前 9 个</span>
+              </footer>
+            </>
+          )}
         </div>
       </main>
 
-      {/* Floating Fish Toggle Switch */}
-      <button
-        onClick={() => setShowFish(!showFish)}
-        className={`fixed bottom-6 right-6 z-40 p-3 rounded-full shadow-lg backdrop-blur-md border border-[var(--border-color)] transition-all duration-500 hover:scale-110 active:scale-90 group ${
-          showFish 
-            ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20' 
-            : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-        }`}
-        title={showFish ? '关闭背景动画' : '开启背景动画'}
-      >
-        <div className="relative">
-          {showFish ? <Fish size={20} /> : <FishOff size={20} />}
-          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${showFish ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
-        </div>
-        
-        {/* Tooltip on Hover */}
-        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          {showFish ? '隐藏小鱼' : '显示小鱼'}
-        </span>
-      </button>
+      {/* 弹层 */}
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        bookmarks={bookmarks}
+        categories={categories}
+        engines={SEARCH_ENGINES}
+        engineId={engineId}
+        canManage={isAuthenticated}
+        visitScore={visitScore}
+        onOpenBookmark={openBookmark}
+        onJumpCategory={scrollToCategory}
+        onAddBookmark={() => openAddBookmark()}
+        onAddCategory={() => {
+          setEditingCategory(null);
+          setCategoryModalOpen(true);
+        }}
+      />
 
-      {/* Modals */}
-      <BookmarkModal 
-        isOpen={isBookmarkModalOpen} 
-        onClose={() => setIsBookmarkModalOpen(false)} 
-        onSave={handleSaveBookmark}
-        onDelete={handleDeleteBookmark}
+      <ContextMenu
+        state={contextMenu}
+        isPinned={contextMenu ? pins.has(contextMenu.bookmark.id) : false}
+        canManage={isAuthenticated}
+        onClose={() => setContextMenu(null)}
+        onOpen={openBookmark}
+        onPreview={(bookmark) => setPreviewBookmark(bookmark)}
+        onCopy={handleCopyLink}
+        onEdit={openEditBookmark}
+        onTogglePin={togglePinBookmark}
+        onDelete={deleteBookmark}
+      />
+
+      <PreviewModal bookmark={previewBookmark} onClose={() => setPreviewBookmark(null)} />
+
+      <BookmarkModal
+        isOpen={isBookmarkModalOpen}
+        onClose={() => setBookmarkModalOpen(false)}
+        onSave={saveBookmark}
+        onDelete={deleteBookmark}
         categories={categories}
         initialData={editingBookmark}
+        defaultCategoryId={defaultCategoryId}
       />
+
       <CategoryModal
         isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onSave={handleSaveCategory}
-        onDelete={handleDeleteCategory} 
+        onClose={() => setCategoryModalOpen(false)}
+        onSave={saveCategory}
+        onDelete={deleteCategory}
         initialData={editingCategory}
       />
+
       <LoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={() => setLoginModalOpen(false)}
         onLogin={handleLogin}
       />
+
       <SiteConfigModal
-        isOpen={isSiteConfigModalOpen}
-        onClose={() => setIsSiteConfigModalOpen(false)}
-        onSave={handleSaveSiteConfig}
+        isOpen={isSiteConfigOpen}
+        onClose={() => setSiteConfigOpen(false)}
+        onSave={(name, fontSize, subtitle) => {
+          setAppName(name);
+          setAppFontSize(fontSize);
+          setAppSubtitle(subtitle);
+          toast({ message: '站点信息已保存', kind: 'success' });
+        }}
         initialName={appName}
         initialFontSize={appFontSize}
         initialSubtitle={appSubtitle}
@@ -813,5 +915,11 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <ToastProvider>
+    <AppShell />
+  </ToastProvider>
+);
 
 export default App;

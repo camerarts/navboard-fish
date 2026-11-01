@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============ 主题变量 ============ */
+:root,
+[data-theme='light'] {
+  --bg-main: #f0f4f8;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-glass: rgba(255, 255, 255, 0.74);
+  --bg-subtle: rgba(241, 245, 249, 0.75);
+  --bg-elevated: #ffffff;
+  --bg-sticky: rgba(255, 255, 255, 0.88);
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: rgba(226, 232, 240, 0.75);
+  --border-strong: rgba(203, 213, 225, 0.9);
+  --accent-color: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-contrast: #ffffff;
+  --accent-bg: rgba(37, 99, 235, 0.1);
+  --shadow-color: rgba(148, 163, 184, 0.18);
+  --shadow-lift: 0 12px 28px -12px rgba(30, 64, 175, 0.28);
+  --hover-bg: rgba(248, 250, 252, 0.9);
+  --danger: #ef4444;
+  --success: #10b981;
+  --backdrop-blur: 20px;
+}
+
+[data-theme='dark'] {
+  --bg-main: #0f172a;
+  --bg-card: rgba(30, 41, 59, 0.7);
+  --bg-glass: rgba(30, 41, 59, 0.72);
+  --bg-subtle: rgba(51, 65, 85, 0.5);
+  --bg-elevated: #1e293b;
+  --bg-sticky: rgba(15, 23, 42, 0.88);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: rgba(51, 65, 85, 0.7);
+  --border-strong: rgba(71, 85, 105, 0.9);
+  --accent-color: #60a5fa;
+  --accent-strong: #3b82f6;
+  --accent-contrast: #0b1220;
+  --accent-bg: rgba(59, 130, 246, 0.15);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 12px 28px -12px rgba(0, 0, 0, 0.6);
+  --hover-bg: rgba(51, 65, 85, 0.6);
+  --danger: #f87171;
+  --success: #34d399;
+}
+
+[data-theme='cyberpunk'] {
+  --bg-main: #050505;
+  --bg-card: rgba(18, 18, 18, 0.8);
+  --bg-glass: rgba(18, 18, 18, 0.8);
+  --bg-subtle: rgba(26, 26, 26, 0.7);
+  --bg-elevated: #121212;
+  --bg-sticky: rgba(8, 8, 8, 0.9);
+  --text-primary: #00ff9d;
+  --text-secondary: #d946ef;
+  --border-color: rgba(0, 255, 157, 0.3);
+  --border-strong: rgba(0, 255, 157, 0.55);
+  --accent-color: #00ff9d;
+  --accent-strong: #00cc7e;
+  --accent-contrast: #04120c;
+  --accent-bg: rgba(0, 255, 157, 0.1);
+  --shadow-color: rgba(0, 255, 157, 0.2);
+  --shadow-lift: 0 12px 30px -10px rgba(0, 255, 157, 0.35);
+  --hover-bg: rgba(26, 26, 26, 0.8);
+  --danger: #ff2d78;
+  --success: #00ff9d;
+}
+
+/* ============ 基础 ============ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    margin: 0;
+    @apply antialiased;
+  }
+
+  /* 键盘用户可见的焦点环；鼠标点击不显示 */
+  :focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer utilities {
+  /* 隐藏滚动条但保留滚动能力 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 细滚动条（跟随主题） */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .glass {
+    background: var(--bg-card);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  }
+}
+
+/* ============ 动画 ============ */
+@keyframes navFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes navPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes navToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes navShimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+@layer utilities {
+  .animate-fade-up {
+    animation: navFadeUp 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  }
+  .animate-pop-in {
+    animation: navPopIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .animate-toast-in {
+    animation: navToastIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--bg-subtle) 0%,
+      var(--border-color) 50%,
+      var(--bg-subtle) 100%
+    );
+    background-size: 400px 100%;
+    background-repeat: no-repeat;
+    animation: navShimmer 1.4s ease-in-out infinite;
+  }
+}
+
+/* 尊重系统降低动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

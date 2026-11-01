@@ -1,72 +1,123 @@
-
-import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
-import { SEARCH_ENGINES } from '../constants';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Command } from 'lucide-react';
 import { SearchEngine } from '../types';
+import { cn } from '../lib/utils';
 
 interface SearchBarProps {
-  onSearch?: (query: string) => void;
+  engines: SearchEngine[];
+  engineId: string;
+  onEngineChange: (id: string) => void;
+  onOpenPalette: () => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = () => {
+const SearchBar: React.FC<SearchBarProps> = ({ engines, engineId, onEngineChange, onOpenPalette }) => {
   const [query, setQuery] = useState('');
-  const [selectedEngine, setSelectedEngine] = useState<SearchEngine>(SEARCH_ENGINES[0]);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const active = engines.find((e) => e.id === engineId) || engines[0];
 
-    window.location.href = `${selectedEngine.urlTemplate}${encodeURIComponent(query)}`;
+  // 外部用 "/" 键聚焦时通过自定义事件触发
+  useEffect(() => {
+    const focusInput = () => inputRef.current?.focus();
+    window.addEventListener('nav:focus-search', focusInput);
+    return () => window.removeEventListener('nav:focus-search', focusInput);
+  }, []);
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const q = query.trim();
+    if (!q) {
+      onOpenPalette();
+      return;
+    }
+    window.open(`${active.urlTemplate}${encodeURIComponent(q)}`, '_blank', 'noopener');
+    setQuery('');
   };
 
-  return (
-    <div className="w-full max-w-3xl mx-auto mb-8 relative z-20">
-      {/* Search Input Box */}
-      <div className="relative group">
-        {/* Glow Effect */}
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-200 to-purple-200 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-        
-        <form onSubmit={handleSearch} className="relative flex items-center bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl shadow-xl shadow-[var(--shadow-color)] ring-1 ring-[var(--border-color)] p-2 transition-all duration-300">
-          
-          {/* Left: Search Engine Selector */}
-          <div className="flex items-center pl-3 pr-2 border-r border-[var(--border-color)] min-w-[110px]">
-            <select 
-                className="bg-transparent text-sm font-semibold text-[var(--text-secondary)] focus:outline-none cursor-pointer py-2 w-full"
-                value={selectedEngine.id}
-                onChange={(e) => setSelectedEngine(SEARCH_ENGINES.find(eng => eng.id === e.target.value) || SEARCH_ENGINES[0])}
-            >
-                {SEARCH_ENGINES.map(eng => (
-                <option key={eng.id} value={eng.id}>{eng.name}</option>
-                ))}
-            </select>
-          </div>
+  const shortcutHint = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
-          {/* Center: Input */}
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="输入关键词搜索..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-lg text-[var(--text-primary)] placeholder-[var(--text-secondary)] px-4 py-3 w-full focus:outline-none"
-            autoFocus
-          />
-          
-          {/* Right: Action Button */}
-          <div className="flex items-center gap-2 pl-2">
-            <button
-                type="submit"
-                disabled={!query.trim()}
-                className={`p-3 rounded-xl transition-all duration-200 ${
-                query.trim() 
-                    ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
-                    : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)]'
-                }`}
-            >
-                <ArrowRight size={20} />
-            </button>
-          </div>
-        </form>
-      </div>
+  return (
+    <div className="relative z-20 mx-auto mb-6 w-full max-w-3xl">
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-center gap-1.5 rounded-2xl p-1.5 transition-shadow duration-300 sm:gap-2 sm:p-2"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          boxShadow: focused ? 'var(--shadow-lift)' : '0 4px 16px -8px var(--shadow-color)',
+        }}
+      >
+        {/* 搜索引擎：分段 pill，替代原生下拉 */}
+        <div
+          className="flex shrink-0 items-center gap-0.5 rounded-xl p-0.5"
+          style={{ background: 'var(--bg-subtle)' }}
+          role="group"
+          aria-label="选择搜索引擎"
+        >
+          {engines.map((engine) => {
+            const isActive = engine.id === active.id;
+            return (
+              <button
+                key={engine.id}
+                type="button"
+                onClick={() => onEngineChange(engine.id)}
+                aria-pressed={isActive}
+                className={cn(
+                  'rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-all duration-200 sm:px-2.5',
+                  'whitespace-nowrap'
+                )}
+                style={{
+                  background: isActive ? 'var(--bg-elevated)' : 'transparent',
+                  color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  boxShadow: isActive ? '0 1px 3px var(--shadow-color)' : 'none',
+                }}
+                title={`${engine.name}（${shortcutHint} + ${engines.indexOf(engine) + 1}）`}
+              >
+                {engine.name.replace('搜索', '')}
+              </button>
+            );
+          })}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={`用${active.name.replace('搜索', '')}搜索，或按 ${shortcutHint}K 找书签`}
+          aria-label="搜索"
+          className="min-w-0 flex-1 border-none bg-transparent px-1.5 py-2 text-[15px] outline-none placeholder:text-[13px] sm:px-2"
+          style={{ color: 'var(--text-primary)' }}
+        />
+
+        <button
+          type="button"
+          onClick={onOpenPalette}
+          className="hidden shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors hover:bg-[var(--bg-subtle)] sm:flex"
+          style={{ color: 'var(--text-secondary)' }}
+          title="打开命令面板"
+        >
+          <Command size={12} />
+          <span className="tabular-nums">K</span>
+        </button>
+
+        <button
+          type="submit"
+          aria-label={query.trim() ? '开始搜索' : '打开书签搜索'}
+          className={cn(
+            'shrink-0 rounded-xl p-2.5 transition-all duration-200 active:scale-95'
+          )}
+          style={{
+            background: query.trim() ? 'var(--accent-color)' : 'var(--bg-subtle)',
+            color: query.trim() ? '#fff' : 'var(--text-secondary)',
+          }}
+        >
+          <ArrowRight size={18} />
+        </button>
+      </form>
     </div>
   );
 };

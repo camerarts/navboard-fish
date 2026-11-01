@@ -510,7 +510,7 @@ const FishBackground: React.FC<FishProps> = ({
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 0 }} 
     >
-      <canvas ref={canvasRef} className="block w-full h-full opacity-60" /> 
+      <canvas ref={canvasRef} className="block w-full h-full opacity-40" /> 
     </div>
   );
 };

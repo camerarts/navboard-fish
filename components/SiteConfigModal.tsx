@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Type, AppWindow, FileType } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import Modal from './Modal';
 
 interface SiteConfigModalProps {
   isOpen: boolean;
@@ -17,101 +17,124 @@ const FONT_SIZES = [
   { label: '特大', value: 'text-3xl' },
 ];
 
-const SiteConfigModal: React.FC<SiteConfigModalProps> = ({ isOpen, onClose, onSave, initialName, initialFontSize, initialSubtitle }) => {
+const SiteConfigModal: React.FC<SiteConfigModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialName,
+  initialFontSize,
+  initialSubtitle,
+}) => {
   const [name, setName] = useState(initialName);
   const [subtitle, setSubtitle] = useState(initialSubtitle);
   const [fontSize, setFontSize] = useState(initialFontSize);
 
   useEffect(() => {
-    if (isOpen) {
-      setName(initialName);
-      setSubtitle(initialSubtitle);
-      setFontSize(initialFontSize);
-    }
+    if (!isOpen) return;
+    setName(initialName);
+    setSubtitle(initialSubtitle);
+    setFontSize(initialFontSize);
   }, [isOpen, initialName, initialFontSize, initialSubtitle]);
 
-  if (!isOpen) return null;
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSave(name.trim() || 'FlatNav', fontSize, subtitle.trim() || 'Dashboard');
+    onClose();
+  };
+
+  const labelClass = 'mb-1.5 block text-[10.5px] font-bold uppercase tracking-wider';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
-        <div className="flex justify-between items-center p-5 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <AppWindow size={20} className="text-blue-500" />
-            网站设置
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition">
-            <X size={20} />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="站点设置"
+      subtitle="改的是标题展示，不影响任何书签数据"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[var(--bg-subtle)]"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          >
+            取消
           </button>
+          <button
+            type="submit"
+            form="site-config-form"
+            className="rounded-lg px-4 py-1.5 text-[12.5px] font-bold text-white"
+            style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}
+          >
+            保存
+          </button>
+        </>
+      }
+    >
+      <form id="site-config-form" onSubmit={handleSubmit} className="space-y-3.5">
+        <div>
+          <label className={labelClass} style={{ color: 'var(--text-secondary)' }}>
+            站点名称
+          </label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="FlatNav"
+            className="w-full rounded-lg border px-3 py-2 text-[13px] outline-none focus:border-[var(--accent-color)]"
+            style={{
+              background: 'var(--bg-subtle)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-primary)',
+            }}
+          />
         </div>
-        
-        <div className="p-6 space-y-6">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">网站名称</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              placeholder="FlatNav"
-            />
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">副标题</label>
-            <div className="relative">
-                <input
-                type="text"
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all pl-10"
-                placeholder="Dashboard"
-                />
-                <FileType size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-            </div>
-          </div>
+        <div>
+          <label className={labelClass} style={{ color: 'var(--text-secondary)' }}>
+            副标题
+          </label>
+          <input
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+            placeholder="Dashboard"
+            className="w-full rounded-lg border px-3 py-2 text-[13px] outline-none focus:border-[var(--accent-color)]"
+            style={{
+              background: 'var(--bg-subtle)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">标题字号</label>
-            <div className="grid grid-cols-4 gap-2">
-              {FONT_SIZES.map((size) => (
+        <div>
+          <label className={labelClass} style={{ color: 'var(--text-secondary)' }}>
+            名称字号
+          </label>
+          <div className="flex gap-1.5">
+            {FONT_SIZES.map((size) => {
+              const isActive = fontSize === size.value;
+              return (
                 <button
                   key={size.value}
+                  type="button"
                   onClick={() => setFontSize(size.value)}
-                  className={`py-2.5 rounded-lg text-sm font-medium border transition-all ${
-                    fontSize === size.value
-                      ? 'bg-blue-50 border-blue-500 text-blue-600 ring-1 ring-blue-500'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
+                  aria-pressed={isActive}
+                  className="flex-1 rounded-lg border py-1.5 text-[12px] font-semibold transition-all"
+                  style={{
+                    borderColor: isActive ? 'var(--accent-color)' : 'var(--border-color)',
+                    background: isActive ? 'var(--accent-bg)' : 'transparent',
+                    color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  }}
                 >
                   {size.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-
-          <div className="pt-2">
-            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">预览</label>
-            <div className="p-5 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-4">
-               <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shrink-0">
-                 <Type size={24} />
-               </div>
-               <div className="flex flex-col min-w-0">
-                  <span className={`${fontSize} font-bold text-slate-800 leading-tight transition-all duration-300 truncate`}>{name || 'FlatNav'}</span>
-                  <span className="text-[10px] font-medium text-slate-400 uppercase mt-1 tracking-widest">{subtitle || 'DASHBOARD'}</span>
-               </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => { onSave(name, fontSize, subtitle); onClose(); }}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 font-medium transition shadow-md hover:shadow-lg active:scale-95"
-          >
-            保存设置
-          </button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 
