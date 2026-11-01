@@ -43,6 +43,9 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  // 用 ref 持有 onClose，避免父组件每次渲染都重建副作用（否则会反复抢焦点）
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -65,7 +68,7 @@ const Modal: React.FC<ModalProps> = ({
       if (event.key === 'Escape') {
         event.stopPropagation();
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !panel) return;
@@ -94,7 +97,7 @@ const Modal: React.FC<ModalProps> = ({
       document.removeEventListener('keydown', onKeyDown, true);
       restoreFocusRef.current?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
