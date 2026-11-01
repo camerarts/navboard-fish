@@ -18,7 +18,20 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ChevronRight, GripVertical, Info, Plus } from 'lucide-react';
+import {
+  ChevronRight,
+  Download,
+  Fish,
+  FishOff,
+  FolderPlus,
+  GripVertical,
+  Info,
+  Keyboard,
+  LayoutGrid,
+  Palette,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
@@ -28,7 +41,8 @@ import CategoryModal from './components/CategoryModal';
 import LoginModal from './components/LoginModal';
 import SiteConfigModal from './components/SiteConfigModal';
 import PreviewModal from './components/PreviewModal';
-import CommandPalette from './components/CommandPalette';
+import CommandPalette, { PaletteAction } from './components/CommandPalette';
+import ShortcutsHelp from './components/ShortcutsHelp';
 import ContextMenu, { ContextMenuState } from './components/ContextMenu';
 import ContentSkeleton from './components/ContentSkeleton';
 import DashboardWidgets from './components/DashboardWidgets';
@@ -44,7 +58,8 @@ import { useDensity, useFrecency } from './hooks/usePreferences';
 import { cn, copyToClipboard, safeGetItem, safeSetItem } from './lib/utils';
 import { readBootCache } from './lib/cache';
 
-type ThemeType = 'light' | 'dark' | 'cyberpunk';
+type ThemeType = 'light' | 'dark' | 'cyberpunk' | 'auto';
+type ResolvedTheme = 'light' | 'dark' | 'cyberpunk';
 type SyncState = 'idle' | 'syncing' | 'saved' | 'error';
 
 const ENGINE_KEY = 'flatnav_engine';
@@ -74,9 +89,29 @@ const AppShell: React.FC = () => {
   const [theme, setTheme] = useState<ThemeType>(
     () => (boot.config?.theme as ThemeType) || (safeGetItem('flatnav_theme') as ThemeType) || 'light'
   );
+  // 「跟随系统」需要实时感知系统配色
+  const [systemDark, setSystemDark] = useState<boolean>(
+    () =>
+      typeof window !== 'undefined' &&
+      !!window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  const resolvedTheme: ResolvedTheme =
+    theme === 'auto' ? (systemDark ? 'dark' : 'light') : theme;
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [previewBookmark, setPreviewBookmark] = useState<Bookmark | null>(null);
   const [engineId, setEngineId] = useState<string>(
@@ -557,6 +592,58 @@ const AppShell: React.FC = () => {
     if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
+  /* ================= 深链：把当前分类写进 URL，刷新/分享可直达 ================= */
+
+  useEffect(() => {
+    if (!activeSectionId) return;
+    if (window.location.hash === `#${activeSectionId}`) return;
+    window.history.replaceState(null, '', `#${activeSectionId}`);
+  }, [activeSectionId]);
+
+  // 首次加载：URL 带 #category-xxx 时直接定位过去
+  useEffect(() => {
+    if (isLoading) return;
+    const hash = window.location.hash.replace('#', '');
+    if (!hash.startsWith('category-')) return;
+
+    const timer = window.setTimeout(() => {
+      const element = document.getElementById(hash);
+      const container = mainRef.current;
+      if (!element || !container) return;
+      const top =
+        container.scrollTop +
+        (element.getBoundingClientRect().top - container.getBoundingClientRect().top) -
+        10;
+      container.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+    }, 60);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
+  /* ================= 数据导出（纯前端，不改云端数据） ================= */
+
+  const exportData = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      version: 2,
+      categories,
+      bookmarks,
+      config: { appName, appSubtitle, appFontSize, theme },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `flatnav-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ message: '已导出 JSON 备份', kind: 'success' });
+  };
+
   /* ================= 快捷键 ================= */
 
   const openNthBookmark = (index: number) => {
@@ -568,10 +655,24 @@ const AppShell: React.FC = () => {
     if (target) openBookmark(target);
   };
 
+  const cycleTheme = () => {
+    const order: ThemeType[] = ['auto', 'light', 'dark', 'cyberpunk'];
+    const next = order[(order.indexOf(theme) + 1) % order.length];
+    setTheme(next);
+    const label: Record<ThemeType, string> = {
+      auto: '跟随系统',
+      light: '浅色',
+      dark: '深色',
+      cyberpunk: '赛博朋克',
+    };
+    toast({ message: `主题：${label[next]}`, kind: 'info' });
+  };
+
   const hotkeys = useMemo(() => {
     const map: Record<string, () => void> = {
       'mod+k': () => setIsPaletteOpen((prev) => !prev),
       '/': () => window.dispatchEvent(new Event('nav:focus-search')),
+      'shift+?': () => setIsShortcutsOpen((prev) => !prev),
       escape: () => {
         setIsPaletteOpen(false);
         setContextMenu(null);
@@ -585,6 +686,106 @@ const AppShell: React.FC = () => {
   }, [activeSectionId, bookmarks]);
 
   useHotkeys(hotkeys);
+
+  /* ================= 命令面板里的命令 ================= */
+
+  const cycleDensity = () => {
+    const order = ['compact', 'comfortable', 'large'] as const;
+    const next = order[(order.indexOf(density) + 1) % order.length];
+    setDensity(next);
+    const label = { compact: '紧凑', comfortable: '标准', large: '大图标' } as const;
+    toast({ message: `视图密度：${label[next]}`, kind: 'info' });
+  };
+
+  const themeLabel: Record<ThemeType, string> = {
+    auto: '跟随系统',
+    light: '浅色',
+    dark: '深色',
+    cyberpunk: '赛博朋克',
+  };
+  const densityLabel = { compact: '紧凑', comfortable: '标准', large: '大图标' } as const;
+
+  const paletteActions = useMemo<PaletteAction[]>(() => {
+    const list: PaletteAction[] = [];
+
+    if (isAuthenticated) {
+      list.push(
+        {
+          key: 'act:add-bookmark',
+          title: '添加书签',
+          subtitle: '新建一个书签',
+          icon: <Plus size={14} />,
+          keywords: 'add bookmark new 新增 书签',
+          run: () => openAddBookmark(),
+        },
+        {
+          key: 'act:add-category',
+          title: '新建分类',
+          subtitle: '新增一个分类分组',
+          icon: <FolderPlus size={14} />,
+          keywords: 'add category 分组 分类',
+          run: () => {
+            setEditingCategory(null);
+            setCategoryModalOpen(true);
+          },
+        }
+      );
+    }
+
+    list.push(
+      {
+        key: 'act:theme',
+        title: `切换主题（当前：${themeLabel[theme]}）`,
+        subtitle: '跟随系统 → 浅色 → 深色 → 赛博朋克',
+        icon: <Palette size={14} />,
+        keywords: 'theme dark light auto 主题 深色 浅色 夜间 跟随系统',
+        run: cycleTheme,
+      },
+      {
+        key: 'act:density',
+        title: `切换视图密度（当前：${densityLabel[density]}）`,
+        subtitle: '紧凑 / 标准 / 大图标',
+        icon: <LayoutGrid size={14} />,
+        keywords: 'density layout 密度 紧凑 图标 布局',
+        run: cycleDensity,
+      },
+      {
+        key: 'act:fish',
+        title: showFish ? '关闭背景动画' : '开启背景动画',
+        subtitle: '小鱼游动效果',
+        icon: showFish ? <Fish size={14} /> : <FishOff size={14} />,
+        keywords: 'fish background animation 背景 动画 小鱼',
+        run: () => setShowFish((prev) => !prev),
+      },
+      {
+        key: 'act:refresh',
+        title: '从云端刷新数据',
+        subtitle: '重新拉取 KV 里的最新书签',
+        icon: <RefreshCw size={14} />,
+        keywords: 'refresh sync reload 刷新 同步',
+        run: () => loadDataFromKV(),
+      },
+      {
+        key: 'act:export',
+        title: '导出 JSON 备份',
+        subtitle: '下载当前书签与分类',
+        icon: <Download size={14} />,
+        keywords: 'export backup json 导出 备份',
+        run: exportData,
+      },
+      {
+        key: 'act:shortcuts',
+        title: '查看键盘快捷键',
+        subtitle: '按 ? 也可以打开',
+        icon: <Keyboard size={14} />,
+        keywords: 'shortcut keyboard help 快捷键 帮助',
+        run: () => setIsShortcutsOpen(true),
+      }
+    );
+
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, theme, density, showFish]);
 
   /* ================= 渲染 ================= */
 
@@ -604,7 +805,7 @@ const AppShell: React.FC = () => {
   return (
     <div
       className="relative flex h-[100dvh] overflow-hidden font-sans transition-colors duration-300"
-      data-theme={theme}
+      data-theme={resolvedTheme}
       style={{ background: 'var(--bg-main)', color: 'var(--text-primary)' }}
     >
       {showFish && <FishBackground />}
@@ -699,6 +900,11 @@ const AppShell: React.FC = () => {
                 engineId={engineId}
                 onEngineChange={setEngineId}
                 onOpenPalette={() => setIsPaletteOpen(true)}
+                bookmarks={bookmarks}
+                categories={categories}
+                visitScore={visitScore}
+                onOpenBookmark={openBookmark}
+                onJumpCategory={scrollToCategory}
               />
 
               {/* 工具栏 */}
@@ -862,11 +1068,7 @@ const AppShell: React.FC = () => {
         visitScore={visitScore}
         onOpenBookmark={openBookmark}
         onJumpCategory={scrollToCategory}
-        onAddBookmark={() => openAddBookmark()}
-        onAddCategory={() => {
-          setEditingCategory(null);
-          setCategoryModalOpen(true);
-        }}
+        actions={paletteActions}
       />
 
       <ContextMenu
@@ -883,6 +1085,24 @@ const AppShell: React.FC = () => {
       />
 
       <PreviewModal bookmark={previewBookmark} onClose={() => setPreviewBookmark(null)} />
+
+      <ShortcutsHelp isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
+      {/* 移动端常驻添加入口：滚到页面中部也能直接加 */}
+      {isAuthenticated && (
+        <button
+          onClick={() => openAddBookmark()}
+          className="fixed bottom-5 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform active:scale-90 md:hidden"
+          style={{
+            background: 'var(--accent-color)',
+            color: 'var(--accent-contrast)',
+            boxShadow: '0 10px 24px -10px var(--accent-color)',
+          }}
+          aria-label="添加书签"
+        >
+          <Plus size={22} strokeWidth={3} />
+        </button>
+      )}
 
       <BookmarkModal
         isOpen={isBookmarkModalOpen}

@@ -7,6 +7,16 @@ import { fuzzyScore } from '../lib/fuzzy';
 import { getDomain } from '../lib/utils';
 import BookmarkIcon from './BookmarkIcon';
 
+export interface PaletteAction {
+  key: string;
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  /** 额外的搜索关键词，比如「主题 dark 深色」 */
+  keywords?: string;
+  run: () => void;
+}
+
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,12 +24,11 @@ interface CommandPaletteProps {
   categories: Category[];
   engines: SearchEngine[];
   engineId: string;
-  canManage: boolean;
   visitScore: (id: string) => number;
   onOpenBookmark: (bookmark: Bookmark) => void;
   onJumpCategory: (categoryId: string) => void;
-  onAddBookmark: () => void;
-  onAddCategory: () => void;
+  /** 由外部注入的命令（切换主题、导出、打开帮助等） */
+  actions: PaletteAction[];
 }
 
 type ItemKind = 'bookmark' | 'category' | 'action' | 'web';
@@ -66,12 +75,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   categories,
   engines,
   engineId,
-  canManage,
   visitScore,
   onOpenBookmark,
   onJumpCategory,
-  onAddBookmark,
-  onAddCategory,
+  actions,
 }) => {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -138,32 +145,20 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       shown.forEach((entry) => result.push(bookmarkItem(entry.bookmark, entry.score)));
       categories.slice(0, 5).forEach((category) => result.push(categoryItem(category)));
 
-      if (canManage) {
-        result.push(
-          {
-            key: 'act:add-bookmark',
-            kind: 'action',
-            title: '添加书签',
-            subtitle: '新建一个书签',
-            icon: <Plus size={14} />,
-            run: () => {
-              onAddBookmark();
-              onClose();
-            },
+      // 外部注入的命令（添加书签、切主题、导出…）
+      actions.forEach((action) =>
+        result.push({
+          key: action.key,
+          kind: 'action',
+          title: action.title,
+          subtitle: action.subtitle,
+          icon: action.icon,
+          run: () => {
+            action.run();
+            onClose();
           },
-          {
-            key: 'act:add-category',
-            kind: 'action',
-            title: '新建分类',
-            subtitle: '新增一个分类分组',
-            icon: <Plus size={14} />,
-            run: () => {
-              onAddCategory();
-              onClose();
-            },
-          }
-        );
-      }
+        })
+      );
 
       return result;
     }
@@ -194,22 +189,26 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     });
 
-    if (canManage) {
-      result.push({
-        key: 'act:add-bookmark',
-        kind: 'action',
-        title: '添加书签',
-        subtitle: '新建一个书签',
-        icon: <Plus size={14} />,
-        run: () => {
-          onAddBookmark();
-          onClose();
-        },
-      });
-    }
+    // 关键词命中的命令（比如输「深色」能找到切换主题）
+    actions
+      .filter((action) => fuzzyScore(q, `${action.title} ${action.keywords || ''}`) >= 0)
+      .slice(0, 4)
+      .forEach((action) =>
+        result.push({
+          key: action.key,
+          kind: 'action',
+          title: action.title,
+          subtitle: action.subtitle,
+          icon: action.icon,
+          run: () => {
+            action.run();
+            onClose();
+          },
+        })
+      );
 
     return result;
-  }, [query, bookmarks, categories, categoryName, engine, canManage, visitScore, onOpenBookmark, onJumpCategory, onAddBookmark, onAddCategory, onClose]);
+  }, [query, bookmarks, categories, categoryName, engine, visitScore, onOpenBookmark, onJumpCategory, actions, onClose]);
 
   useEffect(() => {
     setCursor((prev) => Math.min(prev, Math.max(items.length - 1, 0)));

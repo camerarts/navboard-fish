@@ -9,11 +9,20 @@
     <link rel="icon" href="/favicon.ico" />
     <!-- 在样式生效前先套用缓存里的主题，避免深色用户看到白屏闪一下 -->
     <script>
-      try {
-        var cached = JSON.parse(localStorage.getItem('flatnav_config') || '{}');
-        var theme = cached.theme || localStorage.getItem('flatnav_theme') || 'light';
-        document.documentElement.setAttribute('data-theme', theme);
-      } catch (e) {}
+      (function () {
+        try {
+          var cached = JSON.parse(localStorage.getItem('flatnav_config') || '{}');
+          var theme = cached.theme || localStorage.getItem('flatnav_theme') || 'light';
+          // 「跟随系统」要先解析成真实配色，否则首帧没有匹配的底色会闪白
+          if (theme === 'auto') {
+            var dark =
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches;
+            theme = dark ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
     </script>
     <!-- 关键底色内联，避免主样式表到达前闪一帧白屏 -->
     <style>

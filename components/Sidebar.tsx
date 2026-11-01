@@ -11,6 +11,7 @@ import {
   FolderPlus,
   LogOut,
   Moon,
+  Monitor,
   Plus,
   RefreshCw,
   Search,
@@ -25,7 +26,7 @@ import { CATEGORY_ICONS } from '../constants';
 import { Density, DENSITY_OPTIONS } from '../hooks/usePreferences';
 import { cn } from '../lib/utils';
 
-type ThemeType = 'light' | 'dark' | 'cyberpunk';
+type ThemeType = 'light' | 'dark' | 'cyberpunk' | 'auto';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ interface SidebarProps {
 }
 
 const THEMES: { value: ThemeType; label: string; icon: React.ReactNode }[] = [
+  { value: 'auto', label: '跟随系统', icon: <Monitor size={15} /> },
   { value: 'light', label: '浅色', icon: <Sun size={15} /> },
   { value: 'dark', label: '深色', icon: <Moon size={15} /> },
   { value: 'cyberpunk', label: '赛博', icon: <Zap size={15} /> },
