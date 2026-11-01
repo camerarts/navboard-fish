@@ -255,7 +255,7 @@ button:active:not([disabled]) {
    桌面端（>640px）保持原有 auto-fill 自适应密度，不受此规则影响。 */
 @media (max-width: 640px) {
   .bm-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 6px !important;
   }
   .bm-card-link {
