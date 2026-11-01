@@ -155,6 +155,12 @@ const AppShell: React.FC = () => {
   const hasLoadedRef = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
 
+  // 仅在「打开页面时 URL 已带 #category-x」时才做深链定位；
+  // scroll-spy 会在滚动后把当前分类写回 hash，不能让它触发“加载即滚动”
+  const initialHashRef = useRef(
+    typeof window !== 'undefined' ? window.location.hash : ''
+  );
+
   /* ================= 数据读写（行为与原逻辑保持一致） ================= */
 
   const loadFromLocalStorage = useCallback(() => {
@@ -606,10 +612,10 @@ const AppShell: React.FC = () => {
     window.history.replaceState(null, '', `#${activeSectionId}`);
   }, [activeSectionId]);
 
-  // 首次加载：URL 带 #category-xxx 时直接定位过去
+  // 首次加载：仅当「打开页面时」URL 已带 #category-xxx 才定位过去
   useEffect(() => {
     if (isLoading) return;
-    const hash = window.location.hash.replace('#', '');
+    const hash = initialHashRef.current.replace('#', '');
     if (!hash.startsWith('category-')) return;
 
     const timer = window.setTimeout(() => {

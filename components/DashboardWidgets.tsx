@@ -213,7 +213,7 @@ const CalendarCard: React.FC = () => {
       <div className="flex-1 pl-2 xl:pl-3 flex flex-col justify-center min-w-0">
         <h3 className="text-xs xl:text-base font-bold text-[var(--text-primary)] mb-0.5 truncate">{WEEKDAYS[date.getDay()]}</h3>
         <p className="text-[9px] xl:text-[10px] text-[var(--text-secondary)] font-medium truncate">{getLunarDate(date)}</p>
-        <p className="text-sm xl:text-lg font-mono text-[var(--text-primary)] mt-0.5 xl:mt-1 tracking-widest truncate opacity-90 font-semibold">
+        <p className="text-sm xl:text-lg font-mono text-[var(--text-primary)] mt-0.5 xl:mt-1 tracking-widest truncate opacity-90 font-semibold hidden md:block">
             {date.toLocaleTimeString('en-GB', { hour12: false })}
         </p>
       </div>
@@ -490,24 +490,24 @@ const IPCard: React.FC = () => {
 
 const DashboardWidgets: React.FC = () => {
   return (
-    <div className="flex flex-nowrap overflow-x-auto gap-3 w-full mx-auto mb-6 relative z-20 scrollbar-hide snap-x snap-mandatory pb-1 xl:pb-0 xl:gap-4 xl:overflow-visible">
+    <div className="grid grid-cols-[1.1fr_0.9fr_1.1fr] gap-2 w-full mx-auto mb-6 relative z-20 md:flex md:flex-nowrap md:overflow-x-auto md:gap-3 md:pb-1 md:scrollbar-hide md:snap-x md:snap-mandatory xl:pb-0 xl:gap-4 xl:overflow-visible">
         {/* Calendar */}
-        <div className="min-w-[140px] w-[40%] md:w-[28%] xl:w-[20%] xl:min-w-0 snap-start shrink-0">
+        <div className="w-full md:min-w-[140px] md:w-[28%] xl:w-[20%] xl:min-w-0 md:snap-start md:shrink-0">
           <CalendarCard />
         </div>
-        
+
         {/* Weather */}
-        <div className="min-w-[180px] w-[55%] md:w-[40%] xl:w-[35%] xl:min-w-0 snap-start shrink-0">
+        <div className="w-full md:min-w-[180px] md:w-[40%] xl:w-[35%] xl:min-w-0 md:snap-start md:shrink-0">
           <WeatherCard />
         </div>
 
-        {/* Clock */}
-        <div className="min-w-[110px] w-[30%] md:w-[22%] xl:w-[15%] xl:min-w-0 snap-start shrink-0">
+        {/* Clock（手机端隐藏） */}
+        <div className="hidden w-full md:flex md:min-w-[110px] md:w-[22%] xl:w-[15%] xl:min-w-0 md:snap-start md:shrink-0">
            <ClockCard />
         </div>
 
         {/* IP */}
-        <div className="min-w-[160px] w-[45%] md:w-[32%] xl:w-[30%] xl:min-w-0 snap-start shrink-0">
+        <div className="w-full md:min-w-[160px] md:w-[32%] xl:w-[30%] xl:min-w-0 md:snap-start md:shrink-0">
            <IPCard />
         </div>
     </div>
