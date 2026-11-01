@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowRight, CornerDownLeft, Globe, Hash, Plus, Search } from 'lucide-react';
 import { Bookmark, Category, SearchEngine } from '../types';
 import { searchBookmarks } from '../lib/search';
 import { fuzzyScore } from '../lib/fuzzy';
 import { getDomain } from '../lib/utils';
+import { recentPointerWithin, prefersReducedMotion } from '../lib/motion';
 import BookmarkIcon from './BookmarkIcon';
 
 export interface PaletteAction {
@@ -84,6 +85,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const engine = engines.find((e) => e.id === engineId) || engines[0];
   const categoryName = useMemo(
@@ -219,6 +222,38 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     node?.scrollIntoView({ block: 'nearest' });
   }, [cursor]);
 
+  // 命令面板从触发点展开（放 Discharge）
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    const overlay = overlayRef.current;
+    if (!panel || prefersReducedMotion()) return;
+    if (overlay) {
+      overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+    }
+    const p = recentPointerWithin(600);
+    let origin = '50% 0%';
+    if (p) {
+      const r = panel.getBoundingClientRect();
+      const x = Math.min(Math.max(p.x - r.left, -r.width * 0.25), r.width * 1.25);
+      const y = Math.min(Math.max(p.y - r.top, -r.height * 0.25), r.height * 1.25);
+      origin = `${x}px ${y}px`;
+    }
+    panel.style.transformOrigin = origin;
+    const from = p
+      ? { opacity: 0, transform: 'scale(0.9)' }
+      : { opacity: 0, transform: 'translateY(-12px) scale(0.98)' };
+    const anim = panel.animate([from, { opacity: 1, transform: 'none' }], {
+      duration: p ? 360 : 280,
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      fill: 'backwards',
+    });
+    return () => {
+      anim.cancel();
+      if (panel) panel.style.transformOrigin = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -240,16 +275,18 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   return createPortal(
     <div className="fixed inset-0 z-[160] flex justify-center px-3 pt-[10vh] sm:pt-[14vh]">
       <div
+        ref={overlayRef}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="命令面板"
-        className="animate-pop-in relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border"
+        className="relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border"
         style={{
           background: 'var(--bg-elevated)',
           borderColor: 'var(--border-color)',

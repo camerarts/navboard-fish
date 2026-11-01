@@ -202,6 +202,43 @@
   }
 }
 
+/* ============ 借鉴 scaffold-master 的交互细节 ============ */
+
+/* 按压反馈：任意按钮按下时轻微收缩，给出实体「放 Discharge」的手感 */
+button:active:not([disabled]) {
+  transform: scale(0.97);
+}
+
+/* 悬浮抬升：卡片等可点容器轻浮 3px，比单纯变色更有层次 */
+.fx-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  will-change: transform;
+}
+.fx-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* 主按钮涟漪：从真实点击坐标化开（放 Discharge） */
+[data-ripple] {
+  position: relative;
+  overflow: hidden;
+}
+.fx-ripple-dot {
+  position: absolute;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.32;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: ripple-out 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes ripple-out {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
 /* 尊重系统降低动效偏好 */
 @media (prefers-reduced-motion: reduce) {
   *,

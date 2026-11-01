@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { recentPointerWithin, prefersReducedMotion } from '../lib/motion';
 
 interface ModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ const Modal: React.FC<ModalProps> = ({
   closeOnBackdrop = true,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   // 用 ref 持有 onClose，避免父组件每次渲染都重建副作用（否则会反复抢焦点）
   const onCloseRef = useRef(onClose);
@@ -99,11 +101,44 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
+  // 弹层从触发点展开（放 Discharge）：从最近一次指针位置放大，键盘触发回落中心
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    const overlay = overlayRef.current;
+    if (!panel || prefersReducedMotion()) return;
+    if (overlay) {
+      overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+    }
+    const p = recentPointerWithin(600);
+    let origin = '50% 50%';
+    if (p) {
+      const r = panel.getBoundingClientRect();
+      const x = Math.min(Math.max(p.x - r.left, -r.width * 0.25), r.width * 1.25);
+      const y = Math.min(Math.max(p.y - r.top, -r.height * 0.25), r.height * 1.25);
+      origin = `${x}px ${y}px`;
+    }
+    panel.style.transformOrigin = origin;
+    const from = p
+      ? { opacity: 0, transform: 'scale(0.86)' }
+      : { opacity: 0, transform: 'translateY(14px) scale(0.975)' };
+    const anim = panel.animate([from, { opacity: 1, transform: 'none' }], {
+      duration: p ? 420 : 300,
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      fill: 'backwards',
+    });
+    return () => {
+      anim.cancel();
+      if (panel) panel.style.transformOrigin = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[150] flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div
+        ref={overlayRef}
         className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px] transition-opacity"
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
@@ -116,7 +151,7 @@ const Modal: React.FC<ModalProps> = ({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'animate-pop-in relative flex max-h-[92vh] w-full flex-col overflow-hidden outline-none',
+          'relative flex max-h-[92vh] w-full flex-col overflow-hidden outline-none',
           'rounded-t-2xl sm:rounded-2xl border shadow-2xl',
           SIZES[size]
         )}

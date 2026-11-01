@@ -103,7 +103,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         cardRef.current = node;
       }}
       style={dragStyle}
-      className={cn('group relative', isDragging && 'opacity-30')}
+      className={cn('group relative fx-lift', isDragging && 'opacity-30')}
       onPointerMove={handlePointerMove}
       onPointerLeave={() => {
         setHovered(false);
@@ -146,7 +146,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           style={{
             opacity: hovered ? 1 : 0,
             background:
-              'radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), var(--accent-bg), transparent 70%)',
+              'radial-gradient(160px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent-bg) 50%, #ffffff), var(--accent-bg) 42%, transparent 72%)',
           }}
         />
 

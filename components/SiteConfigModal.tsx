@@ -62,6 +62,7 @@ const SiteConfigModal: React.FC<SiteConfigModalProps> = ({
           </button>
           <button
             type="submit"
+            data-ripple
             form="site-config-form"
             className="rounded-lg px-4 py-1.5 text-[12.5px] font-bold text-white"
             style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}

@@ -57,6 +57,7 @@ import { useScrollSpy } from './hooks/useScrollSpy';
 import { useDensity, useFrecency } from './hooks/usePreferences';
 import { cn, copyToClipboard, safeGetItem, safeSetItem } from './lib/utils';
 import { readBootCache } from './lib/cache';
+import { installRipple } from './lib/motion';
 
 type ThemeType = 'light' | 'dark' | 'cyberpunk' | 'auto';
 type ResolvedTheme = 'light' | 'dark' | 'cyberpunk';
@@ -103,6 +104,11 @@ const AppShell: React.FC = () => {
     const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  // 安装主按钮波纹（从点击点化开）
+  useEffect(() => {
+    installRipple();
   }, []);
 
   const resolvedTheme: ResolvedTheme =

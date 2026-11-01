@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   ChevronLeft,
@@ -101,6 +101,32 @@ const Sidebar: React.FC<SidebarProps> = ({
   isFirstLoad,
 }) => {
   const [filter, setFilter] = useState('');
+  const navRef = useRef<HTMLElement | null>(null);
+  const thumbRef = useRef<HTMLSpanElement | null>(null);
+
+  // 滑动玻璃滑块：跟随选中分类，用几何差值平滑滑动到对应项
+  useEffect(() => {
+    const nav = navRef.current;
+    const thumb = thumbRef.current;
+    if (!nav || !thumb) return;
+    const sync = () => {
+      const active = nav.querySelector<HTMLElement>('[aria-current="true"]');
+      if (!active) {
+        thumb.style.opacity = '0';
+        return;
+      }
+      thumb.style.top = `${active.offsetTop}px`;
+      thumb.style.height = `${active.offsetHeight}px`;
+      thumb.style.opacity = '1';
+    };
+    const raf = requestAnimationFrame(sync);
+    const observer = new ResizeObserver(() => requestAnimationFrame(sync));
+    observer.observe(nav);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, [activeCategoryId, categories, filter]);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -290,7 +316,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          <nav className="flex flex-col gap-0.5" aria-label="分类导航">
+          <nav ref={navRef} className="relative flex flex-col gap-0.5" aria-label="分类导航">
+            <span
+              ref={thumbRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 right-0 z-0 rounded-xl"
+              style={{
+                top: 0,
+                height: 0,
+                opacity: 0,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-color)',
+                boxShadow: 'var(--shadow-lift)',
+                transition:
+                  'top .35s cubic-bezier(.16,1,.3,1), height .35s cubic-bezier(.16,1,.3,1), opacity .25s ease',
+              }}
+            />
             {visibleCategories.map((category) => {
               const Icon = CATEGORY_ICONS[category.name] || CATEGORY_ICONS['日常办公'];
               const isActive = activeCategoryId === `category-${category.id}`;
@@ -301,10 +342,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => onSelectCategory(category.id)}
                   aria-current={isActive ? 'true' : undefined}
                   className={cn(
-                    'group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] font-medium transition-all duration-200'
+                    'group relative z-[1] flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] font-medium transition-all duration-200'
                   )}
                   style={{
-                    background: isActive ? 'var(--accent-bg)' : 'transparent',
+                    background: 'transparent',
                     color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
                   }}
                 >
@@ -444,6 +485,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           {isAuthenticated && (
             <button
               onClick={onToggleEditMode}
+              data-ripple
               className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-[12px] font-semibold transition-all"
               style={{
                 background: editMode ? 'var(--accent-color)' : 'var(--bg-elevated)',
@@ -534,6 +576,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <button
               onClick={onOpenLogin}
+              data-ripple
               className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
               style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)', boxShadow: '0 8px 20px -10px var(--accent-color)' }}
             >

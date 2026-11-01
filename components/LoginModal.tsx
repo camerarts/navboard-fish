@@ -96,6 +96,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
         <button
           type="submit"
+          data-ripple
           disabled={isLoading || !password.trim()}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-bold text-white transition-all disabled:opacity-50"
           style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}

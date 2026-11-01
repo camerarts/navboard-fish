@@ -219,6 +219,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
         <button
           type="submit"
+          data-ripple
           aria-label={query.trim() ? '搜索' : '打开书签搜索'}
           className="shrink-0 rounded-xl p-2.5 transition-all duration-200 active:scale-95"
           style={{

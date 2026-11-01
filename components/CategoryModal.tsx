@@ -82,6 +82,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
           </button>
           <button
             type="submit"
+            data-ripple
             form="category-form"
             className="rounded-lg px-4 py-1.5 text-[12.5px] font-bold text-white transition-transform hover:-translate-y-0.5"
             style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}
