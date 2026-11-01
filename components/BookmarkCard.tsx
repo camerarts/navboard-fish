@@ -126,7 +126,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         onClick={() => onBeforeOpen(bookmark)}
         title={`${bookmark.title}${bookmark.description ? ' · ' + bookmark.description : ''}`}
         className={cn(
-          'relative flex h-full items-start overflow-hidden border transition-[background-color,border-color,box-shadow,transform] duration-200',
+          'bm-card-link relative flex h-full items-start overflow-hidden border transition-[background-color,border-color,box-shadow,transform] duration-200',
           'no-tap-highlight',
           style.pad,
           style.gap,
@@ -150,7 +150,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           }}
         />
 
-        <span className="relative mt-0.5 shrink-0">
+        <span className="bm-icon-wrap relative mt-0.5 shrink-0">
           <BookmarkIcon
             url={bookmark.url}
             title={bookmark.title}
@@ -167,16 +167,16 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           )}
         </span>
 
-        <span className="relative flex min-w-0 flex-1 flex-col">
+        <span className="bm-text relative flex min-w-0 flex-1 flex-col">
           <span
-            className={cn('truncate font-semibold leading-snug', style.title)}
+            className={cn('bm-title truncate font-semibold leading-snug', style.title)}
             style={{ color: 'var(--text-primary)' }}
           >
             {bookmark.title}
           </span>
           {bookmark.description && density !== 'compact' && (
             <span
-              className={cn('mt-0.5 truncate leading-tight opacity-70', style.desc)}
+              className={cn('bm-desc mt-0.5 truncate leading-tight opacity-70', style.desc)}
               style={{ color: 'var(--text-secondary)' }}
             >
               {bookmark.description}

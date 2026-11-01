@@ -250,3 +250,34 @@ button:active:not([disabled]) {
     scroll-behavior: auto !important;
   }
 }
+
+/* ============ 移动端：书签网格固定 4 列，卡片竖排（像手机桌面图标） ============
+   桌面端（>640px）保持原有 auto-fill 自适应密度，不受此规则影响。 */
+@media (max-width: 640px) {
+  .bm-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .bm-card-link {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center;
+    text-align: center;
+    gap: 5px !important;
+  }
+  .bm-card-link .bm-icon-wrap {
+    margin-top: 0 !important;
+  }
+  .bm-card-link .bm-text {
+    flex: none !important;
+    align-items: center !important;
+    width: 100%;
+  }
+  .bm-card-link .bm-title {
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .bm-card-link .bm-desc {
+    display: none !important;
+  }
+}

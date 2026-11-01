@@ -184,7 +184,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
           strategy={rectSortingStrategy}
         >
           <div
-            className="grid gap-1.5 md:gap-2"
+            className="bm-grid grid gap-1.5 md:gap-2"
             style={{ gridTemplateColumns: GRID_MIN[density] }}
           >
             {bookmarks.map((bookmark) => (
