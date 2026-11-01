@@ -42,6 +42,7 @@ import { useHotkeys } from './hooks/useHotkeys';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { useDensity, useFrecency } from './hooks/usePreferences';
 import { cn, copyToClipboard, safeGetItem, safeSetItem } from './lib/utils';
+import { readBootCache } from './lib/cache';
 
 type ThemeType = 'light' | 'dark' | 'cyberpunk';
 type SyncState = 'idle' | 'syncing' | 'saved' | 'error';
@@ -51,17 +52,28 @@ const ENGINE_KEY = 'flatnav_engine';
 const AppShell: React.FC = () => {
   const { toast } = useToast();
 
+  // 首帧就同步读取本地缓存：有缓存时直接渲染用户自己的数据，
+  // 不再出现「先显示示例书签、2 秒后才变成真实数据」的闪跳
+  const [boot] = useState(readBootCache);
+
   // --- 数据 ---
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>(INITIAL_BOOKMARKS);
-  const [isLoading, setIsLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(
+    () => boot.categories ?? INITIAL_CATEGORIES
+  );
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(
+    () => boot.bookmarks ?? INITIAL_BOOKMARKS
+  );
+  // 只有完全没有任何本地缓存（首次访问）时才需要骨架屏
+  const [isLoading, setIsLoading] = useState<boolean>(() => !boot.bookmarks);
 
   // --- 登录 ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionPassword, setSessionPassword] = useState('');
 
   // --- 界面 ---
-  const [theme, setTheme] = useState<ThemeType>('light');
+  const [theme, setTheme] = useState<ThemeType>(
+    () => (boot.config?.theme as ThemeType) || (safeGetItem('flatnav_theme') as ThemeType) || 'light'
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -84,9 +96,9 @@ const AppShell: React.FC = () => {
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | undefined>(undefined);
 
   // --- 站点配置 ---
-  const [appName, setAppName] = useState('FlatNav');
-  const [appSubtitle, setAppSubtitle] = useState('Dashboard');
-  const [appFontSize, setAppFontSize] = useState('text-xl');
+  const [appName, setAppName] = useState(() => boot.config?.appName || 'FlatNav');
+  const [appSubtitle, setAppSubtitle] = useState(() => boot.config?.appSubtitle || 'Dashboard');
+  const [appFontSize, setAppFontSize] = useState(() => boot.config?.appFontSize || 'text-xl');
   const [logoError, setLogoError] = useState(false);
 
   // --- 同步 ---
@@ -212,9 +224,6 @@ const AppShell: React.FC = () => {
   useEffect(() => {
     if (window.innerWidth < 768) setIsSidebarOpen(false);
 
-    const storedTheme = safeGetItem('flatnav_theme') as ThemeType | null;
-    if (storedTheme) setTheme(storedTheme);
-
     const savedPassword = safeGetItem('flatnav_session_pwd');
     if (savedPassword) {
       setSessionPassword(savedPassword);
@@ -229,9 +238,9 @@ const AppShell: React.FC = () => {
 
   // 防抖保存
   useEffect(() => {
-    if (!hasLoadedRef.current) return;
     const timer = window.setTimeout(() => {
-      if (isAuthenticated && sessionPassword) {
+      // 本地缓存随时可写（离线也不丢改动）；云端只在首次加载完成后才写，避免旧数据覆盖新数据
+      if (hasLoadedRef.current && isAuthenticated && sessionPassword) {
         saveDataToKV();
       } else {
         persistLocal({ bookmarks, categories, config: { appName, appSubtitle, appFontSize, theme } });

@@ -7,6 +7,20 @@
     <meta name="theme-color" content="#f0f4f8" />
     <title>FlatNav Dashboard</title>
     <link rel="icon" href="/favicon.ico" />
+    <!-- 在样式生效前先套用缓存里的主题，避免深色用户看到白屏闪一下 -->
+    <script>
+      try {
+        var cached = JSON.parse(localStorage.getItem('flatnav_config') || '{}');
+        var theme = cached.theme || localStorage.getItem('flatnav_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    </script>
+    <!-- 关键底色内联，避免主样式表到达前闪一帧白屏 -->
+    <style>
+      html[data-theme='light'] body { background-color: #f0f4f8; }
+      html[data-theme='dark'] body { background-color: #0f172a; }
+      html[data-theme='cyberpunk'] body { background-color: #050505; }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
