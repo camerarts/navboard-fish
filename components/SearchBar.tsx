@@ -151,8 +151,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
         className="flex items-center gap-1.5 rounded-2xl p-1.5 transition-shadow duration-300 sm:gap-2 sm:p-2"
         style={{
           background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          boxShadow: open ? 'var(--shadow-lift)' : '0 4px 16px -8px var(--shadow-color)',
+          border: 'none',
+          boxShadow: open ? 'var(--neu-inset), var(--neu-raised)' : 'var(--neu-inset)',
         }}
       >
         {/* 搜索引擎：分段 pill（窄屏隐藏，回车默认用首选引擎） */}
@@ -174,7 +174,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 style={{
                   background: isActive ? 'var(--bg-elevated)' : 'transparent',
                   color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
-                  boxShadow: isActive ? '0 1px 3px var(--shadow-color)' : 'none',
+                  boxShadow: isActive ? 'var(--neu-raised-sm)' : 'none',
                 }}
                 title={`${engine.name}（${shortcutHint} + ${engines.indexOf(engine) + 1}）`}
               >
@@ -241,14 +241,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
           id="search-suggestions"
           role="listbox"
           className={cn(
-            'absolute inset-x-0 top-[calc(100%+6px)] overflow-hidden rounded-xl border p-1',
+            'absolute inset-x-0 top-[calc(100%+6px)] overflow-hidden rounded-xl p-1',
             open ? 'animate-pop-in' : 'animate-pop-out'
           )}
           aria-hidden={!open}
           style={{
             background: 'var(--bg-elevated)',
-            borderColor: 'var(--border-color)',
-            boxShadow: 'var(--shadow-lift)',
+            border: 'none',
+            boxShadow: 'var(--neu-raised-lg), 0 18px 44px -16px rgba(0, 0, 0, 0.4)',
             pointerEvents: open ? 'auto' : 'none',
           }}
         >

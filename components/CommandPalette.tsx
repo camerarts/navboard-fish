@@ -304,11 +304,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="命令面板"
-        className="relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border"
+        className="relative flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl"
         style={{
           background: 'var(--bg-elevated)',
-          borderColor: 'var(--border-color)',
-          boxShadow: 'var(--shadow-lift)',
+          border: 'none',
+          boxShadow: 'var(--neu-raised-lg), 0 24px 60px -20px rgba(0, 0, 0, 0.45)',
         }}
       >
         <div

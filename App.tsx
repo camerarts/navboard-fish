@@ -872,10 +872,11 @@ const AppShell: React.FC = () => {
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="fixed left-3 top-4 z-40 flex items-center gap-1 rounded-xl border px-2 py-2 shadow-sm backdrop-blur-md transition-transform hover:translate-x-0.5"
+          className="fixed left-3 top-4 z-40 flex items-center gap-1 rounded-xl px-2 py-2 transition-transform hover:translate-x-0.5"
           style={{
             background: 'var(--bg-card)',
-            borderColor: 'var(--border-color)',
+            border: 'none',
+            boxShadow: 'var(--neu-raised)',
             color: 'var(--text-secondary)',
           }}
           aria-label="展开侧边栏"
@@ -939,8 +940,12 @@ const AppShell: React.FC = () => {
                 {isAuthenticated && (
                   <button
                     onClick={() => openAddBookmark()}
-                    className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-[12px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5"
-                    style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)' }}
+                    className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-[12px] font-bold transition-all neu-press"
+                    style={{
+                      background: 'var(--accent-color)',
+                      color: 'var(--accent-contrast)',
+                      boxShadow: 'var(--neu-raised-sm), 0 6px 14px -8px var(--accent-color)',
+                    }}
                   >
                     <Plus size={13} strokeWidth={3} />
                     添加书签

@@ -2,51 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============ 主题变量 ============ */
+/* ============ 主题变量 ============
+   light/dark 采用「新拟态 Soft UI」语言（参考用户提供的风格板）：
+   - 表面与背景同色系（不透明），层级靠光影而非描边
+   - 左上光源：凸起 = 左上高光 + 右下暗影（--neu-raised）
+   - 凹陷（输入槽/分段控件）= 反向内阴影（--neu-inset / --neu-pressed）
+   - 大圆角、去描边，彩色仅作点缀 */
+
 :root,
 [data-theme='light'] {
-  --bg-main: #f0f4f8;
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-glass: rgba(255, 255, 255, 0.74);
-  --bg-subtle: rgba(241, 245, 249, 0.75);
-  --bg-elevated: #ffffff;
-  --bg-sticky: rgba(255, 255, 255, 0.88);
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border-color: rgba(226, 232, 240, 0.75);
-  --border-strong: rgba(203, 213, 225, 0.9);
-  --accent-color: #2563eb;
-  --accent-strong: #1d4ed8;
+  --bg-main: #e0e5ec;
+  --bg-card: #e4e9f1;
+  --bg-glass: #e4e9f1;
+  --bg-subtle: #d4dbe6;
+  --bg-elevated: #e9eef5;
+  --bg-sticky: #e2e7ef;
+  --text-primary: #2d3a4f;
+  --text-secondary: #6b788f;
+  --border-color: rgba(163, 177, 198, 0.35);
+  --border-strong: rgba(163, 177, 198, 0.7);
+  --accent-color: #4a6cf7;
+  --accent-strong: #3a56d9;
   --accent-contrast: #ffffff;
-  --accent-bg: rgba(37, 99, 235, 0.1);
-  --shadow-color: rgba(148, 163, 184, 0.18);
-  --shadow-lift: 0 12px 28px -12px rgba(30, 64, 175, 0.28);
-  --hover-bg: rgba(248, 250, 252, 0.9);
-  --danger: #ef4444;
-  --success: #10b981;
+  --accent-bg: rgba(74, 108, 247, 0.14);
+  --shadow-color: rgba(163, 177, 198, 0.55);
+  --shadow-lift: -8px -8px 16px rgba(255, 255, 255, 0.85), 12px 12px 28px rgba(163, 177, 198, 0.55);
+  --hover-bg: #e8edf4;
+  --danger: #e15b64;
+  --success: #29b489;
   --backdrop-blur: 20px;
+  /* 新拟态光影（浅色） */
+  --neu-hi: rgba(255, 255, 255, 0.9);
+  --neu-lo: rgba(158, 173, 196, 0.62);
+  --neu-raised: -5px -5px 11px var(--neu-hi), 7px 7px 15px var(--neu-lo);
+  --neu-raised-sm: -3px -3px 7px var(--neu-hi), 4px 4px 9px var(--neu-lo);
+  --neu-raised-lg: -9px -9px 20px var(--neu-hi), 14px 14px 34px var(--neu-lo);
+  --neu-pressed: inset 4px 4px 8px var(--neu-lo), inset -4px -4px 8px var(--neu-hi);
+  --neu-inset: inset 3px 3px 6px var(--neu-lo), inset -3px -3px 6px var(--neu-hi);
 }
 
 [data-theme='dark'] {
-  --bg-main: #0f172a;
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --bg-glass: rgba(30, 41, 59, 0.72);
-  --bg-subtle: rgba(51, 65, 85, 0.5);
-  --bg-elevated: #1e293b;
-  --bg-sticky: rgba(15, 23, 42, 0.88);
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border-color: rgba(51, 65, 85, 0.7);
-  --border-strong: rgba(71, 85, 105, 0.9);
-  --accent-color: #60a5fa;
-  --accent-strong: #3b82f6;
+  --bg-main: #1d222b;
+  --bg-card: #232936;
+  --bg-glass: #232936;
+  --bg-subtle: #1a1f27;
+  --bg-elevated: #272e3b;
+  --bg-sticky: #20252f;
+  --text-primary: #e8ecf3;
+  --text-secondary: #8b96a8;
+  --border-color: rgba(75, 86, 105, 0.4);
+  --border-strong: rgba(96, 108, 130, 0.7);
+  --accent-color: #6d8bff;
+  --accent-strong: #5673f0;
   --accent-contrast: #0b1220;
-  --accent-bg: rgba(59, 130, 246, 0.15);
-  --shadow-color: rgba(0, 0, 0, 0.4);
-  --shadow-lift: 0 12px 28px -12px rgba(0, 0, 0, 0.6);
-  --hover-bg: rgba(51, 65, 85, 0.6);
+  --accent-bg: rgba(109, 139, 255, 0.16);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --shadow-lift: 0 14px 34px -10px rgba(0, 0, 0, 0.55), -6px -6px 14px rgba(120, 132, 160, 0.07);
+  --hover-bg: #2a3140;
   --danger: #f87171;
   --success: #34d399;
+  /* 新拟态光影（深色）：高光是微弱的顶光反射，暗影更深 */
+  --neu-hi: rgba(133, 146, 173, 0.14);
+  --neu-lo: rgba(0, 0, 0, 0.55);
+  --neu-raised: -5px -5px 11px var(--neu-hi), 7px 7px 16px var(--neu-lo);
+  --neu-raised-sm: -3px -3px 7px var(--neu-hi), 4px 4px 10px var(--neu-lo);
+  --neu-raised-lg: -9px -9px 20px var(--neu-hi), 16px 16px 36px var(--neu-lo);
+  --neu-pressed: inset 5px 5px 10px rgba(0, 0, 0, 0.6), inset -4px -4px 9px var(--neu-hi);
+  --neu-inset: inset 3px 3px 7px rgba(0, 0, 0, 0.55), inset -2px -2px 6px var(--neu-hi);
 }
 
 [data-theme='cyberpunk'] {
@@ -133,6 +155,42 @@
     background: var(--bg-card);
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  }
+
+  /* ============ 新拟态（Soft UI）语汇 ============ */
+  /* 凸起表面：书签卡/小组件/分类容器 */
+  .neu-raised {
+    box-shadow: var(--neu-raised);
+  }
+  .neu-raised-sm {
+    box-shadow: var(--neu-raised-sm);
+  }
+  /* hover 浮得更凸（替代 hover:shadow-xl，避免覆盖双向阴影） */
+  .neu-card-hover {
+    transition: box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neu-card-hover:hover {
+    box-shadow: var(--neu-raised-lg) !important;
+  }
+  /* 凹陷表面：输入槽、分段控件槽、进度槽 */
+  .neu-inset {
+    box-shadow: var(--neu-inset);
+    border: none;
+  }
+  /* 按下即凹：新拟态的核心交互——按钮不是被按扁，而是被按进面板里 */
+  .neu-press {
+    transition: box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .neu-press:hover {
+    box-shadow: var(--neu-raised-sm);
+  }
+  .neu-press:active {
+    box-shadow: var(--neu-pressed) !important;
+    transform: scale(0.98);
+  }
+  /* 可拖拽项按住时凹入面板（跟手语义：抓起来是在面板上施力） */
+  .neu-dragging {
+    box-shadow: var(--neu-pressed) !important;
   }
 }
 
@@ -252,18 +310,18 @@
 
 /* ============ 借鉴 scaffold-master 的交互细节 ============ */
 
-/* 按压反馈：任意按钮按下时轻微收缩，给出实体「放 Discharge」的手感 */
+/* 按压反馈：任意按钮按下时轻微收缩，给出实体手感 */
 button:active:not([disabled]) {
   transform: scale(0.97);
 }
 
-/* 悬浮抬升：卡片等可点容器轻浮 3px，比单纯变色更有层次 */
-.fx-lift {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
-  will-change: transform;
-}
+/* 新拟态下 fx-lift 不再上浮（上浮是描边玻璃语言），改为「浮得更凸」 */
 .fx-lift:hover {
   transform: translateY(-3px);
+}
+.fx-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow;
 }
 
 /* 主按钮涟漪：从真实点击坐标化开（放 Discharge） */

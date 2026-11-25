@@ -170,12 +170,13 @@ const Modal: React.FC<ModalProps> = ({
         tabIndex={-1}
         className={cn(
           'relative flex max-h-[92vh] w-full flex-col overflow-hidden outline-none',
-          'rounded-t-2xl sm:rounded-2xl border shadow-2xl',
+          'rounded-t-2xl sm:rounded-2xl',
           SIZES[size]
         )}
         style={{
           background: 'var(--bg-elevated)',
-          borderColor: 'var(--border-color)',
+          border: 'none',
+          boxShadow: 'var(--neu-raised-lg), 0 24px 60px -20px rgba(0, 0, 0, 0.45)',
           color: 'var(--text-primary)',
         }}
       >

@@ -168,13 +168,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
       ref={menuRef}
       role="menu"
       aria-label={`${bookmark.title} 的操作菜单`}
-      className="animate-pop-in fixed z-[170] min-w-[176px] overflow-hidden rounded-xl border p-1"
+      className="animate-pop-in fixed z-[170] min-w-[176px] overflow-hidden rounded-xl p-1"
       style={{
         left: position.x,
         top: position.y,
         background: 'var(--bg-elevated)',
-        borderColor: 'var(--border-color)',
-        boxShadow: 'var(--shadow-lift)',
+        border: 'none',
+        boxShadow: 'var(--neu-raised-lg), 0 18px 44px -16px rgba(0, 0, 0, 0.4)',
       }}
     >
       <div

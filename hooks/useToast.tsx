@@ -95,14 +95,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               role="status"
               aria-live="polite"
               className={cn(
-                'pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border px-3.5 py-2.5 shadow-lg backdrop-blur-md sm:max-w-md',
+                'pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl px-3.5 py-2.5 sm:max-w-md',
                 item.leaving ? 'animate-toast-out' : 'animate-toast-in'
               )}
               style={{
                 background: 'var(--bg-elevated)',
-                borderColor: 'var(--border-color)',
                 color: 'var(--text-primary)',
-                boxShadow: 'var(--shadow-lift)',
+                boxShadow: 'var(--neu-raised-lg), 0 18px 44px -16px rgba(0, 0, 0, 0.4)',
                 pointerEvents: item.leaving ? 'none' : 'auto',
               }}
             >

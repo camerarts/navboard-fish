@@ -154,14 +154,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 left-0 z-50 flex h-full w-[260px] shrink-0 flex-col border-r backdrop-blur-xl transition-transform duration-300 ease-smooth',
+        'fixed inset-y-0 left-0 z-50 flex h-full w-[260px] shrink-0 flex-col transition-transform duration-300 ease-smooth',
         'md:relative md:z-30 md:translate-x-0',
-        isOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:border-r-0 md:opacity-0'
+        isOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:opacity-0'
       )}
       style={{
-        background: 'var(--bg-card)',
-        borderColor: 'var(--border-color)',
-        boxShadow: isOpen ? '0 0 40px -20px var(--shadow-color)' : 'none',
+        background: 'var(--bg-subtle)',
+        boxShadow: isOpen ? 'var(--neu-raised-lg)' : 'none',
       }}
       aria-label="侧边栏导航"
     >
@@ -248,11 +247,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-3 pb-2">
           <button
             onClick={onOpenPalette}
-            className="flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-[12px] transition-colors hover:border-[var(--accent-color)]"
+            className="neu-press flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[12px]"
             style={{
-              borderColor: 'var(--border-color)',
-              color: 'var(--text-secondary)',
               background: 'var(--bg-subtle)',
+              boxShadow: 'var(--neu-inset)',
+              color: 'var(--text-secondary)',
             }}
           >
             <Search size={13} />
@@ -306,10 +305,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="筛选分类"
                 aria-label="筛选分类"
-                className="w-full rounded-lg border py-1.5 pl-7 pr-2 text-[11.5px] outline-none"
+                className="w-full rounded-lg py-1.5 pl-7 pr-2 text-[11.5px] outline-none"
                 style={{
                   background: 'var(--bg-subtle)',
-                  borderColor: 'var(--border-color)',
+                  boxShadow: 'var(--neu-inset)',
                   color: 'var(--text-primary)',
                 }}
               />
@@ -326,8 +325,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 height: 0,
                 opacity: 0,
                 background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-color)',
-                boxShadow: 'var(--shadow-lift)',
+                border: 'none',
+                boxShadow: 'var(--neu-raised-sm)',
                 transition:
                   'top .35s cubic-bezier(.16,1,.3,1), height .35s cubic-bezier(.16,1,.3,1), opacity .25s ease',
               }}
@@ -405,13 +404,13 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* 底部设置区 */}
         <div
-          className="shrink-0 space-y-2 border-t p-3 backdrop-blur-sm"
+          className="shrink-0 space-y-2 border-t p-3"
           style={{ borderColor: 'var(--border-color)', background: 'var(--bg-subtle)' }}
         >
           {/* 视图密度：仅桌面端显示。手机端列数固定（bm-grid 媒体查询），切换不生效就不该出现 */}
           <div
-            className="hidden md:flex items-center gap-1 rounded-xl border p-0.5"
-            style={{ borderColor: 'var(--border-color)', background: 'var(--bg-main)' }}
+            className="hidden md:flex items-center gap-1 rounded-xl p-1 neu-inset"
+            style={{ background: 'var(--bg-main)' }}
             role="group"
             aria-label="视图密度"
           >
@@ -427,7 +426,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   style={{
                     background: isActive ? 'var(--bg-elevated)' : 'transparent',
                     color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
-                    boxShadow: isActive ? '0 1px 3px var(--shadow-color)' : 'none',
+                    boxShadow: isActive ? 'var(--neu-raised-sm)' : 'none',
                   }}
                 >
                   {option.label}
@@ -439,8 +438,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* 主题 + 背景动画 */}
           <div className="flex items-center gap-1.5">
             <div
-              className="flex flex-1 items-center gap-0.5 rounded-xl border p-0.5"
-              style={{ borderColor: 'var(--border-color)', background: 'var(--bg-main)' }}
+              className="flex flex-1 items-center gap-0.5 rounded-xl p-1 neu-inset"
+              style={{ background: 'var(--bg-main)' }}
               role="group"
               aria-label="主题"
             >
@@ -457,7 +456,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     style={{
                       background: isActive ? 'var(--bg-elevated)' : 'transparent',
                       color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
-                      boxShadow: isActive ? '0 1px 3px var(--shadow-color)' : 'none',
+                      boxShadow: isActive ? 'var(--neu-raised-sm)' : 'none',
                     }}
                   >
                     {item.icon}
@@ -471,11 +470,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               aria-pressed={showFish}
               aria-label={showFish ? '关闭背景动画' : '开启背景动画'}
               title={showFish ? '关闭背景动画' : '开启背景动画'}
-              className="rounded-xl border p-2 transition-colors"
+              className="neu-press rounded-xl p-2"
               style={{
-                borderColor: 'var(--border-color)',
-                background: showFish ? 'var(--accent-bg)' : 'var(--bg-main)',
+                background: showFish ? 'var(--accent-bg)' : 'var(--bg-card)',
                 color: showFish ? 'var(--accent-color)' : 'var(--text-secondary)',
+                boxShadow: showFish ? 'var(--neu-inset)' : 'var(--neu-raised-sm)',
               }}
             >
               {showFish ? <Fish size={14} /> : <FishOff size={14} />}
@@ -486,11 +485,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={onToggleEditMode}
               data-ripple
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-[12px] font-semibold transition-all"
+              className={cn(
+                'flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-[12px] font-semibold transition-all',
+                !editMode && 'neu-press'
+              )}
               style={{
-                background: editMode ? 'var(--accent-color)' : 'var(--bg-elevated)',
+                background: editMode ? 'var(--accent-color)' : 'var(--bg-card)',
                 color: editMode ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                border: `1px solid ${editMode ? 'transparent' : 'var(--border-color)'}`,
+                border: 'none',
+                boxShadow: editMode
+                  ? 'var(--neu-inset)'
+                  : '0 6px 16px -8px var(--accent-color)',
               }}
               aria-pressed={editMode}
             >
@@ -501,8 +506,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           {isAuthenticated ? (
             <div
-              className="rounded-xl border p-2"
-              style={{ borderColor: 'var(--border-color)', background: 'var(--bg-elevated)' }}
+              className="rounded-xl p-2 neu-inset"
+              style={{ background: 'var(--bg-card)' }}
             >
               <div className="flex items-center gap-2">
                 <span
@@ -577,8 +582,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={onOpenLogin}
               data-ripple
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold text-white shadow-md transition-transform hover:-translate-y-0.5"
-              style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)', boxShadow: '0 8px 20px -10px var(--accent-color)' }}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold transition-all"
+              style={{
+                background: 'var(--accent-color)',
+                color: 'var(--accent-contrast)',
+                boxShadow: 'var(--neu-raised-sm), 0 8px 18px -10px var(--accent-color)',
+              }}
             >
               <User size={14} />
               管理员登录

@@ -17,7 +17,7 @@ const ContentSkeleton: React.FC = () => (
     {/* 分类卡片 */}
     <div className="flex flex-col gap-3">
       {[0, 1].map((index) => (
-        <div key={index} className="rounded-2xl border p-3 md:p-4" style={{ borderColor: 'var(--border-color)' }}>
+        <div key={index} className="rounded-2xl p-3 neu-raised md:p-4" style={{ background: 'var(--bg-card)' }}>
           <div className="mb-3 flex items-center gap-2">
             <div className="skeleton h-7 w-7 rounded-lg" />
             <div className="skeleton h-4 w-24 rounded" />

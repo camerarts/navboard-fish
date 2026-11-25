@@ -137,18 +137,19 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         onClick={() => onBeforeOpen(bookmark)}
         title={`${bookmark.title}${bookmark.description ? ' · ' + bookmark.description : ''}`}
         className={cn(
-          'bm-card-link relative flex h-full items-start overflow-hidden border duration-200',
+          'bm-card-link relative flex h-full items-start overflow-hidden duration-200',
           'no-tap-highlight',
           style.pad,
           style.gap,
           style.radius
         )}
         style={{
-          background: hovered ? 'var(--bg-card)' : 'var(--bg-subtle)',
-          borderColor: hovered ? 'var(--border-strong)' : 'transparent',
-          boxShadow: hovered ? 'var(--shadow-lift)' : 'none',
+          background: hovered ? 'var(--bg-elevated)' : 'var(--bg-card)',
+          borderColor: 'transparent',
+          border: 'none',
+          boxShadow: hovered ? 'var(--neu-raised-lg)' : 'var(--neu-raised)',
           transition:
-            'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 0ms',
+            'background-color 200ms ease, box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 0ms',
           willChange: 'transform',
         }}
       >
@@ -167,7 +168,10 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           <BookmarkIcon
             url={bookmark.url}
             title={bookmark.title}
-            className={cn(style.icon, 'shadow-sm transition-transform duration-200 group-hover:scale-105')}
+            className={cn(
+              style.icon,
+              'transition-transform duration-200 group-hover:scale-105'
+            )}
           />
           {isPinned && (
             <span

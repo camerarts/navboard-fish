@@ -91,14 +91,15 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
       <div
         ref={setDropRef}
         className={cn(
-          'relative rounded-2xl border p-3 shadow-sm transition-colors md:p-4',
+          'relative rounded-2xl p-3 transition-shadow md:p-4',
           isOver && canDragBookmarks && 'ring-2'
         )}
         style={{
-          background: 'var(--bg-glass)',
-          borderColor: isOver && canDragBookmarks ? 'var(--accent-color)' : 'var(--border-color)',
+          background: 'var(--bg-card)',
+          boxShadow: 'var(--neu-raised)',
+          borderColor: isOver && canDragBookmarks ? 'var(--accent-color)' : 'transparent',
           ...(isOver && canDragBookmarks
-            ? { boxShadow: '0 0 0 3px var(--accent-bg)' }
+            ? { boxShadow: '0 0 0 3px var(--accent-bg), var(--neu-raised)' }
             : {}),
         }}
       >
