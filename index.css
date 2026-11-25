@@ -137,6 +137,12 @@
 }
 
 /* ============ 动画 ============ */
+/* 统一动效语言（全项目同一套曲线与节奏）：
+   - 进入：240ms cubic-bezier(0.16,1,0.3,1)（expo-out，快启动缓收尾）
+   - 退出：160ms ease-in（轻、快、不拖泥带水）
+   - 强调（Toast）：320ms bounceSoft，允许一点弹性
+   - 只动 transform/opacity，不动布局属性 */
+
 @keyframes navFadeUp {
   from {
     opacity: 0;
@@ -170,6 +176,28 @@
   }
 }
 
+@keyframes navToastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@keyframes navPopOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+  }
+}
+
 @keyframes navShimmer {
   0% {
     background-position: -400px 0;
@@ -186,8 +214,19 @@
   .animate-pop-in {
     animation: navPopIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
+  /* 弹出面板的退出：轻、快、方向与进入对称 */
+  .animate-pop-out {
+    animation: navPopOut 0.14s cubic-bezier(0.4, 0, 1, 1) both;
+  }
   .animate-toast-in {
     animation: navToastIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .animate-toast-out {
+    animation: navToastOut 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  /* 内容淡入：数据/图标/成功态出现时轻描淡写地补上，而不是「啪」一下 */
+  .animate-fade-in {
+    animation: navFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   .skeleton {
     background-image: linear-gradient(
@@ -199,6 +238,15 @@
     background-size: 400px 100%;
     background-repeat: no-repeat;
     animation: navShimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes navFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

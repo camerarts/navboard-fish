@@ -5,7 +5,7 @@ import { Bookmark, Category, SearchEngine } from '../types';
 import { searchBookmarks } from '../lib/search';
 import { fuzzyScore } from '../lib/fuzzy';
 import { getDomain } from '../lib/utils';
-import { recentPointerWithin, prefersReducedMotion } from '../lib/motion';
+import { recentPointerWithin, prefersReducedMotion, useDelayedUnmount, playExitAnimation } from '../lib/motion';
 import BookmarkIcon from './BookmarkIcon';
 
 export interface PaletteAction {
@@ -87,6 +87,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const shouldRender = useDelayedUnmount(isOpen);
+  const closingRef = useRef(false);
 
   const engine = engines.find((e) => e.id === engineId) || engines[0];
   const categoryName = useMemo(
@@ -222,9 +224,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     node?.scrollIntoView({ block: 'nearest' });
   }, [cursor]);
 
-  // 命令面板从触发点展开（放 Discharge）
+  // 命令面板从触发点展开（放 Discharge），关闭时对称收回
   useLayoutEffect(() => {
     if (!isOpen) return;
+    closingRef.current = false;
     const panel = panelRef.current;
     const overlay = overlayRef.current;
     if (!panel || prefersReducedMotion()) return;
@@ -254,9 +257,20 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // 关闭瞬间播放退出动画（延迟卸载保证 DOM 还在）
+  useEffect(() => {
+    if (isOpen || closingRef.current) return;
+    if (!shouldRender) return;
+    closingRef.current = true;
+    const cleanup = playExitAnimation(panelRef.current, overlayRef.current, 'palette');
+    return cleanup;
+  }, [isOpen, shouldRender]);
+
+  if (!shouldRender) return null;
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    // 退出动画期间不再响应任何按键（避免 Enter 把上一次命令重复执行）
+    if (!isOpen) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setCursor((prev) => (items.length === 0 ? 0 : (prev + 1) % items.length));
@@ -273,7 +287,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[160] flex justify-center px-3 pt-[10vh] sm:pt-[14vh]">
+    <div
+      className="fixed inset-0 z-[160] flex justify-center px-3 pt-[10vh] sm:pt-[14vh]"
+      style={isOpen ? undefined : { pointerEvents: 'none' }}
+      aria-hidden={!isOpen}
+    >
       <div
         ref={overlayRef}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"

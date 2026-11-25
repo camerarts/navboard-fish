@@ -85,7 +85,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => 
 
         {error && (
           <p
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11.5px] font-medium"
+            className="flex animate-fade-in items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11.5px] font-medium"
             style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}
             role="alert"
           >

@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Check, Info, Undo2, X } from 'lucide-react';
+import { EXIT_MS } from '../lib/motion';
+import { cn } from '../lib/utils';
 
 export type ToastKind = 'success' | 'error' | 'info';
 
@@ -19,6 +21,8 @@ interface ToastItem extends Required<Pick<ToastOptions, 'message'>> {
   actionLabel?: string;
   onAction?: () => void;
   duration: number;
+  /** 正在退出（先播 160ms 动画再移除，有来有回） */
+  leaving?: boolean;
 }
 
 interface ToastAPI {
@@ -51,12 +55,20 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const timers = useRef<Record<string, number>>({});
 
   const dismiss = useCallback((id: string) => {
-    setItems((prev) => prev.filter((t) => t.id !== id));
+    // 先标记 leaving 播退出动画，动画结束再真正移除
+    setItems((prev) => {
+      const target = prev.find((t) => t.id === id);
+      if (!target || target.leaving) return prev;
+      return prev.map((t) => (t.id === id ? { ...t, leaving: true } : t));
+    });
     const timer = timers.current[id];
     if (timer) {
       window.clearTimeout(timer);
       delete timers.current[id];
     }
+    window.setTimeout(() => {
+      setItems((prev) => prev.filter((t) => t.id !== id));
+    }, EXIT_MS);
   }, []);
 
   const toast = useCallback(
@@ -82,12 +94,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               key={item.id}
               role="status"
               aria-live="polite"
-              className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border px-3.5 py-2.5 shadow-lg backdrop-blur-md sm:max-w-md"
+              className={cn(
+                'pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border px-3.5 py-2.5 shadow-lg backdrop-blur-md sm:max-w-md',
+                item.leaving ? 'animate-toast-out' : 'animate-toast-in'
+              )}
               style={{
                 background: 'var(--bg-elevated)',
                 borderColor: 'var(--border-color)',
                 color: 'var(--text-primary)',
                 boxShadow: 'var(--shadow-lift)',
+                pointerEvents: item.leaving ? 'none' : 'auto',
               }}
             >
               <span

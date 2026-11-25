@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface BookmarkIconProps {
   url: string;
@@ -24,6 +24,7 @@ const BG_COLORS = [
 
 const BookmarkIcon: React.FC<BookmarkIconProps> = ({ url, title, className = "" }) => {
   const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   let domain = '';
   try {
@@ -53,6 +54,16 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({ url, title, className = "" 
   // Use first valid character
   const letter = (title || domain || '#').charAt(0).toUpperCase();
 
+  // 仅当 favicon 地址真的变化时才重置加载态；
+  // 不能在挂载时无条件重置——缓存图 onLoad 可能先于 effect 触发，重置会让它永久卡在字母占位
+  const prevUrlRef = useRef(faviconUrl);
+  useEffect(() => {
+    if (prevUrlRef.current === faviconUrl) return;
+    prevUrlRef.current = faviconUrl;
+    setLoaded(false);
+    setError(false);
+  }, [faviconUrl]);
+
   if (error || !domain) {
     return (
       <div 
@@ -65,13 +76,24 @@ const BookmarkIcon: React.FC<BookmarkIconProps> = ({ url, title, className = "" 
   }
 
   return (
-    <img 
-      src={faviconUrl}
-      alt={title} 
-      className={`object-cover bg-white ${className}`}
-      onError={() => setError(true)}
-      loading="lazy"
-    />
+    <span className={`relative inline-block overflow-hidden ${className}`} aria-hidden="true">
+      {/* 占位字母垫底：图片加载完成前先给内容一个交代，而不是留白 */}
+      <span
+        className={`absolute inset-0 flex items-center justify-center font-bold ${colorClass}`}
+        style={{ fontSize: '100%' }}
+      >
+        {letter}
+      </span>
+      <img 
+        src={faviconUrl}
+        alt=""
+        className="h-full w-full object-cover bg-white transition-opacity duration-300"
+        style={{ opacity: loaded ? 1 : 0 }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        loading="lazy"
+      />
+    </span>
   );
 };
 

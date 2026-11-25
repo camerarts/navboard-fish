@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Bookmark } from '../types';
 import Modal from './Modal';
@@ -11,17 +11,23 @@ interface PreviewModalProps {
 
 /** 站内小窗预览：部分网站禁止被 iframe 嵌套，此时提示用户改用外部打开 */
 const PreviewModal: React.FC<PreviewModalProps> = ({ bookmark, onClose }) => {
+  // 关闭瞬间 bookmark 立即变 null，但退出动画还要播 160ms；
+  // 用快照保住内容，避免退出时闪一下「塌缩的空壳」
+  const lastRef = useRef<Bookmark | null>(null);
+  if (bookmark) lastRef.current = bookmark;
+  const view = bookmark ?? lastRef.current;
+
   return (
     <Modal
       isOpen={!!bookmark}
       onClose={onClose}
       size="xl"
-      title={bookmark?.title || ''}
-      subtitle={bookmark ? getDomain(bookmark.url) : ''}
+      title={view?.title || ''}
+      subtitle={view ? getDomain(view.url) : ''}
       footer={
-        bookmark && (
+        view && (
           <a
-            href={bookmark.url}
+            href={view.url}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white"
@@ -33,11 +39,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ bookmark, onClose }) => {
         )
       }
     >
-      {bookmark && (
+      {view && (
         <div className="flex flex-col gap-2">
           <iframe
-            src={bookmark.url}
-            title={bookmark.title}
+            src={view.url}
+            title={view.title}
             className="h-[62vh] w-full rounded-xl border"
             style={{ borderColor: 'var(--border-color)', background: '#fff' }}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"

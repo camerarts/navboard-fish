@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { recentPointerWithin, prefersReducedMotion } from '../lib/motion';
+import { recentPointerWithin, prefersReducedMotion, useDelayedUnmount, playExitAnimation } from '../lib/motion';
 
 interface ModalProps {
   isOpen: boolean;
@@ -48,6 +48,9 @@ const Modal: React.FC<ModalProps> = ({
   // 用 ref 持有 onClose，避免父组件每次渲染都重建副作用（否则会反复抢焦点）
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // 有来有回：关闭时先播 160ms 退出动画，再卸载 DOM
+  const shouldRender = useDelayedUnmount(isOpen);
+  const closingRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,9 +104,11 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
-  // 弹层从触发点展开（放 Discharge）：从最近一次指针位置放大，键盘触发回落中心
+  // 弹层从触发点展开（放 Discharge）：从最近一次指针位置放大，键盘触发回落中心。
+  // 关闭时对称地收缩回去（退出原点沿用进入原点，来路即归路）。
   useLayoutEffect(() => {
     if (!isOpen) return;
+    closingRef.current = false;
     const panel = panelRef.current;
     const overlay = overlayRef.current;
     if (!panel || prefersReducedMotion()) return;
@@ -133,10 +138,23 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // 关闭瞬间：播放退出动画（DOM 此时还在，因为 useDelayedUnmount 延迟卸载）
+  useEffect(() => {
+    if (isOpen || closingRef.current) return;
+    if (!shouldRender) return;
+    closingRef.current = true;
+    const cleanup = playExitAnimation(panelRef.current, overlayRef.current, 'modal');
+    return cleanup;
+  }, [isOpen, shouldRender]);
+
+  if (!shouldRender) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[150] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div
+      className="fixed inset-0 z-[150] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      style={isOpen ? undefined : { pointerEvents: 'none' }}
+      aria-hidden={!isOpen}
+    >
       <div
         ref={overlayRef}
         className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px] transition-opacity"

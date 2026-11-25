@@ -408,9 +408,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           className="shrink-0 space-y-2 border-t p-3 backdrop-blur-sm"
           style={{ borderColor: 'var(--border-color)', background: 'var(--bg-subtle)' }}
         >
-          {/* 视图密度 */}
+          {/* 视图密度：仅桌面端显示。手机端列数固定（bm-grid 媒体查询），切换不生效就不该出现 */}
           <div
-            className="flex items-center gap-1 rounded-xl border p-0.5"
+            className="hidden md:flex items-center gap-1 rounded-xl border p-0.5"
             style={{ borderColor: 'var(--border-color)', background: 'var(--bg-main)' }}
             role="group"
             aria-label="视图密度"

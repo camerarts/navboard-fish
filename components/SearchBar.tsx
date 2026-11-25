@@ -4,6 +4,8 @@ import { Bookmark, Category, SearchEngine } from '../types';
 import { searchBookmarks } from '../lib/search';
 import { fuzzyScore } from '../lib/fuzzy';
 import { getDomain } from '../lib/utils';
+import { useDelayedUnmount } from '../lib/motion';
+import { cn } from '../lib/utils';
 import BookmarkIcon from './BookmarkIcon';
 
 interface SearchBarProps {
@@ -98,6 +100,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
   }, [query, bookmarks, categories]);
 
   const open = focused && suggestions.length > 0;
+  // 建议面板有来有回：关闭时先播 140ms 收起动画再卸载
+  const panelOpen = useDelayedUnmount(open, 140);
 
   const runSuggestion = (item: Suggestion) => {
     if (item.kind === 'bookmark') onOpenBookmark(item.bookmark);
@@ -232,15 +236,20 @@ const SearchBar: React.FC<SearchBarProps> = ({
       </form>
 
       {/* 建议面板 */}
-      {open && (
+      {panelOpen && (
         <div
           id="search-suggestions"
           role="listbox"
-          className="animate-pop-in absolute inset-x-0 top-[calc(100%+6px)] overflow-hidden rounded-xl border p-1"
+          className={cn(
+            'absolute inset-x-0 top-[calc(100%+6px)] overflow-hidden rounded-xl border p-1',
+            open ? 'animate-pop-in' : 'animate-pop-out'
+          )}
+          aria-hidden={!open}
           style={{
             background: 'var(--bg-elevated)',
             borderColor: 'var(--border-color)',
             boxShadow: 'var(--shadow-lift)',
+            pointerEvents: open ? 'auto' : 'none',
           }}
         >
           {suggestions.map((item, index) => {

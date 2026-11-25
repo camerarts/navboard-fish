@@ -6,6 +6,7 @@ import { Bookmark } from '../types';
 import BookmarkIcon from './BookmarkIcon';
 import { Density } from '../hooks/usePreferences';
 import { cn } from '../lib/utils';
+import { prefersReducedMotion } from '../lib/motion';
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
@@ -79,15 +80,24 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
     el.style.setProperty('--mx', `${x}px`);
     el.style.setProperty('--my', `${y}px`);
 
-    if (enableTilt && anchorRef.current) {
+    if (enableTilt && anchorRef.current && !prefersReducedMotion()) {
+      // 跟手：指针在卡内时倾斜零过渡（有过渡就像在糖浆里划桨）；
+      // 指针离开时再由 onPointerLeave 平滑归位
       const rx = ((y - rect.height / 2) / rect.height) * -4;
       const ry = ((x - rect.width / 2) / rect.width) * 4;
-      anchorRef.current.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+      const a = anchorRef.current;
+      a.style.transition = 'transform 0ms';
+      a.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;
     }
   };
 
   const resetTransform = () => {
-    if (anchorRef.current) anchorRef.current.style.transform = '';
+    const a = anchorRef.current;
+    if (a && a.style.transform) {
+      // 归位时恢复过渡，让倾斜平滑收回而不是「啪」地弹回
+      a.style.transition = 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)';
+      a.style.transform = '';
+    }
   };
 
   const dragStyle: React.CSSProperties = {
@@ -110,6 +120,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         resetTransform();
       }}
       onPointerEnter={() => setHovered(true)}
+      onDragStart={(e) => e.preventDefault()}
       {...(canDrag ? listeners : {})}
       {...(canDrag ? attributes : {})}
       {...(canDrag ? { 'aria-roledescription': '可拖拽的书签，用空格键开始移动' } : {})}
@@ -126,7 +137,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         onClick={() => onBeforeOpen(bookmark)}
         title={`${bookmark.title}${bookmark.description ? ' · ' + bookmark.description : ''}`}
         className={cn(
-          'bm-card-link relative flex h-full items-start overflow-hidden border transition-[background-color,border-color,box-shadow,transform] duration-200',
+          'bm-card-link relative flex h-full items-start overflow-hidden border duration-200',
           'no-tap-highlight',
           style.pad,
           style.gap,
@@ -136,6 +147,8 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
           background: hovered ? 'var(--bg-card)' : 'var(--bg-subtle)',
           borderColor: hovered ? 'var(--border-strong)' : 'transparent',
           boxShadow: hovered ? 'var(--shadow-lift)' : 'none',
+          transition:
+            'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 0ms',
           willChange: 'transform',
         }}
       >

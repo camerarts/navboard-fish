@@ -822,14 +822,15 @@ const AppShell: React.FC = () => {
     >
       {showFish && <FishBackground />}
 
-      {/* 移动端遮罩 */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* 移动端遮罩：跟随侧栏滑入淡入，点按收回 */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity duration-300 md:hidden',
+          isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        )}
+        onClick={() => setIsSidebarOpen(false)}
+        aria-hidden="true"
+      />
 
       <Sidebar
         isOpen={isSidebarOpen}
@@ -1050,18 +1051,18 @@ const AppShell: React.FC = () => {
                 <span>
                   &copy; {new Date().getFullYear()} {appName}
                 </span>
-                <span className="opacity-40">·</span>
-                <span className="flex items-center gap-1">
+                <span className="hidden opacity-40 md:block">·</span>
+                <span className="hidden md:flex items-center gap-1">
                   按 <kbd className="rounded border px-1" style={{ borderColor: 'var(--border-color)' }}>⌘K</kbd>
                   搜索书签
                 </span>
-                <span className="opacity-40">·</span>
-                <span className="flex items-center gap-1">
+                <span className="hidden opacity-40 md:block">·</span>
+                <span className="hidden md:flex items-center gap-1">
                   按 <kbd className="rounded border px-1" style={{ borderColor: 'var(--border-color)' }}>/</kbd>
                   聚焦搜索框
                 </span>
-                <span className="opacity-40">·</span>
-                <span>1–9 直接打开当前分类的前 9 个</span>
+                <span className="hidden opacity-40 md:block">·</span>
+                <span className="hidden md:inline">1–9 直接打开当前分类的前 9 个</span>
               </footer>
             </>
           )}

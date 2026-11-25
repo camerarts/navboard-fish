@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, CornerUpRight, ExternalLink, Maximize2, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { Bookmark } from '../types';
+import { useDelayedUnmount, playExitAnimation } from '../lib/motion';
 
 export interface ContextMenuState {
   x: number;
@@ -45,10 +46,18 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const shouldRender = useDelayedUnmount(!!state);
+  const closingRef = useRef(false);
+  // 关闭时 state 立即变 null，但 DOM 要等退出动画播完才卸载；
+  // 用快照保住最后一次菜单内容，否则退出动画期间渲染守卫直接返回 null（动画失效）
+  const stateRef = useRef<ContextMenuState | null>(null);
+  if (state) stateRef.current = state;
+  const view = state ?? stateRef.current;
 
   // 先渲染到鼠标位置，再根据实际尺寸做边界收敛
   useLayoutEffect(() => {
     if (!state) return;
+    closingRef.current = false;
     const el = menuRef.current;
     const width = el?.offsetWidth ?? 200;
     const height = el?.offsetHeight ?? 260;
@@ -57,6 +66,15 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     const y = Math.min(state.y, window.innerHeight - height - margin);
     setPosition({ x: Math.max(margin, x), y: Math.max(margin, y) });
   }, [state]);
+
+  // 关闭瞬间播放退出动画（延迟卸载保证 DOM 还在）
+  useEffect(() => {
+    if (state || closingRef.current) return;
+    if (!shouldRender) return;
+    closingRef.current = true;
+    const cleanup = playExitAnimation(menuRef.current, null, 'menu');
+    return cleanup;
+  }, [state, shouldRender]);
 
   useEffect(() => {
     if (!state) return;
@@ -81,10 +99,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     };
   }, [state, onClose]);
 
-  if (!state) return null;
+  if (!view || !shouldRender) return null;
 
-  const bookmark = state.bookmark;
+  const bookmark = view.bookmark;
+  // 退出动画期间禁点：菜单正在收走，点了也不会再有动作
+  const interactive = !!state;
   const wrap = (fn: () => void) => () => {
+    if (!interactive) return;
     fn();
     onClose();
   };
@@ -172,7 +193,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
             role="menuitem"
             onClick={entry.run}
             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] font-medium transition-colors hover:bg-[var(--bg-subtle)]"
-            style={{ color: entry.danger ? 'var(--danger)' : 'var(--text-primary)' }}
+            style={{ color: entry.danger ? 'var(--danger)' : 'var(--text-primary)', pointerEvents: interactive ? 'auto' : 'none' }}
           >
             <span style={{ color: entry.danger ? 'var(--danger)' : 'var(--text-secondary)' }}>
               {entry.icon}

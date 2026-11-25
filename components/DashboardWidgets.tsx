@@ -225,6 +225,9 @@ const WeatherCard: React.FC = () => {
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+  // 缓存定位坐标：重试时不必再打扰用户申请定位权限
+  const locationRef = React.useRef<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -252,6 +255,7 @@ const WeatherCard: React.FC = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        locationRef.current = { lat: position.coords.latitude, lon: position.coords.longitude };
         fetchWeather(position.coords.latitude, position.coords.longitude);
       },
       (err) => {
@@ -261,7 +265,35 @@ const WeatherCard: React.FC = () => {
       },
       { timeout: 10000 }
     );
-  }, []);
+  }, [retryCount]);
+
+  // 失败后就地重试：有缓存坐标直接重发请求；定位本身失败才重新申请定位
+  const retry = () => {
+    setError('');
+    setLoading(true);
+    if (locationRef.current) {
+      setWeather(null);
+      const { lat, lon } = locationRef.current;
+      (async () => {
+        try {
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&foreground=true`
+          );
+          if (!res.ok) throw new Error('API Error');
+          const data = await res.json();
+          const locationName = data.timezone ? data.timezone.split('/')[1].replace('_', ' ') : '本地';
+          setWeather({ ...data, locationName });
+        } catch (err) {
+          console.warn('Weather retry failed:', err);
+          setError('获取失败');
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else {
+      setRetryCount((prev) => prev + 1);
+    }
+  };
 
   if (loading) {
     return (
@@ -273,12 +305,12 @@ const WeatherCard: React.FC = () => {
 
   if (error || !weather) {
     return (
-      <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-1 xl:gap-2 w-full">
+      <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex flex-col items-center justify-center text-[var(--text-secondary)] gap-1 xl:gap-2 w-full animate-fade-in">
         <div className="flex items-center gap-2 text-xs xl:text-sm font-bold text-[var(--text-primary)]">
             <AlertTriangle size={14} className="text-yellow-500" />
             {error}
         </div>
-        <button onClick={() => window.location.reload()} className="text-[10px] xl:text-xs text-blue-500 mt-1 hover:underline">刷新</button>
+        <button onClick={retry} className="text-[10px] xl:text-xs text-blue-500 mt-1 hover:underline">重试</button>
       </div>
     );
   }
@@ -287,7 +319,7 @@ const WeatherCard: React.FC = () => {
   const daily = weather.daily;
 
   return (
-    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-2 xl:p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center">
+    <div className="bg-[var(--bg-glass)] backdrop-blur-sm rounded-2xl p-2 xl:p-3 shadow-sm border border-[var(--border-color)] h-24 xl:h-32 flex hover:shadow-xl hover:scale-[1.02] transition-all duration-500 overflow-hidden w-full relative items-center animate-fade-in">
       {/* Current Weather Container */}
       <div className="flex flex-col items-start justify-between w-full md:w-auto md:min-w-[120px] xl:min-w-[160px] md:max-w-[50%] md:pr-4 md:mr-1 md:border-r border-[var(--border-color)] h-full py-0.5 xl:py-1">
         
@@ -335,13 +367,9 @@ const ClockCard: React.FC = () => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    let frameId: number;
-    const update = () => {
-      setTime(new Date());
-      frameId = requestAnimationFrame(update);
-    };
-    frameId = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(frameId);
+    // 每秒更新即可，不再用 requestAnimationFrame 每帧 setState（60 次/秒的重渲染是纯性能税）
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const seconds = time.getSeconds();
@@ -466,7 +494,7 @@ const IPCard: React.FC = () => {
                </button>
            </div>
        ) : (
-           <div className="space-y-0.5 xl:space-y-1 w-full">
+           <div className="space-y-0.5 xl:space-y-1 w-full animate-fade-in">
                <div>
                    <span className="text-[8px] xl:text-[9px] font-bold text-[var(--text-secondary)] tracking-wider block mb-0.5">当前 IP</span>
                    <div className="text-base xl:text-2xl font-bold text-[var(--text-primary)] font-mono tracking-tight truncate" title={ipData.ip}>
